@@ -191,7 +191,36 @@
   footer{padding:40px 0 70px;color:var(--muted);font-size:13px;border-top:1px solid var(--line);position:relative;z-index:2}
   .footer-row{display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px}
 
-  @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.reveal{opacity:1;transform:none}.draw{stroke-dashoffset:0}}
+  /* KPI / chiffres clés */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+  @media(max-width:760px){.kpis{grid-template-columns:repeat(2,1fr)}}
+  .kpi{background:var(--card);backdrop-filter:blur(8px);border:1px solid var(--line);border-radius:16px;padding:20px;text-align:center;position:relative;overflow:hidden}
+  .kpi::after{content:"";position:absolute;left:0;right:0;top:0;height:2px;background:linear-gradient(90deg,var(--cyan),var(--violet))}
+  .kpi .v{font-size:34px;font-weight:800;line-height:1;background:linear-gradient(120deg,var(--cyan),var(--violet));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .kpi .l{color:var(--muted);font-size:13px;margin-top:8px}
+
+  /* Benchmark bars */
+  .bars{display:flex;flex-direction:column;gap:13px;margin-top:6px}
+  .bar{display:grid;grid-template-columns:150px 1fr 48px;align-items:center;gap:12px;font-size:14px}
+  .bar .name{color:var(--text)}
+  .bar .track{height:14px;border-radius:999px;background:rgba(255,255,255,.05);border:1px solid var(--line);overflow:hidden}
+  .bar .fill{display:block;height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,var(--blue),#3a4357);transition:width 1.4s cubic-bezier(.2,.7,.2,1)}
+  .bar.cl .fill{background:linear-gradient(90deg,var(--accent),var(--violet));box-shadow:0 0 12px rgba(255,125,77,.3)}
+  .reveal.in .fill{width:var(--w)}
+  .bar .score{text-align:right;font-family:ui-monospace,monospace;color:var(--muted)}
+  .bar.cl .score{color:var(--accent-2)}
+  @media(max-width:620px){.bar{grid-template-columns:110px 1fr 42px;font-size:13px}}
+
+  /* Glossaire */
+  .gloss{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  @media(max-width:900px){.gloss{grid-template-columns:1fr 1fr}}
+  @media(max-width:600px){.gloss{grid-template-columns:1fr}}
+  .gloss .term{border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:rgba(255,255,255,.02);transition:.2s}
+  .gloss .term:hover{border-color:var(--cyan);box-shadow:0 0 14px rgba(62,230,255,.12)}
+  .gloss dt{font-weight:700;color:var(--cyan);font-family:ui-monospace,monospace;font-size:14px}
+  .gloss dd{color:var(--muted);font-size:14px;margin:5px 0 0}
+
+  @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.reveal{opacity:1;transform:none}.draw{stroke-dashoffset:0}.fill{width:var(--w)}}
 </style>
 </head>
 <body>
@@ -211,6 +240,7 @@
         <li><a href="#claude-code">Claude Code</a></li>
         <li><a href="#archi">Architecture</a></li>
         <li><a href="#cao">CAO / 3D / STEP</a></li>
+        <li><a href="#benchmark">Benchmarks</a></li>
         <li><a href="#outils">Outils</a></li>
       </ul>
     </nav>
@@ -227,7 +257,7 @@
         <h1>Les agents IA entrent dans <span class="grad">l'architecture, la 3D et la CAO</span></h1>
         <p class="lede">Tour d'horizon des dernières nouveautés sur l'intelligence artificielle, les agents autonomes et <strong>Claude Code</strong> d'Anthropic — avec un focus concret sur la modélisation 3D, le dessin technique, les fichiers STEP, le BIM et l'architecture paramétrique.</p>
         <div class="meta-row">
-          <span><span class="dot-i"></span>Mise à jour : 23 mai 2026</span>
+          <span><span class="dot-i"></span>Mise à jour : 28 mai 2026</span>
           <span><span class="dot-i"></span>Sources : Anthropic, Autodesk, MIT Tech Review, InfoQ</span>
           <span><span class="dot-i"></span>Lecture ≈ 8 min</span>
         </div>
@@ -248,6 +278,18 @@
           <div class="face f5"></div><div class="face f6"></div>
           <div class="core"></div>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= CHIFFRES CLES ================= -->
+  <section id="chiffres" style="padding-top:32px;padding-bottom:32px">
+    <div class="container">
+      <div class="kpis reveal">
+        <div class="kpi"><div class="v">88,6 %</div><div class="l">Claude Opus 4.8 sur SWE-bench Verified (mai 2026)</div></div>
+        <div class="kpi"><div class="v">600</div><div class="l">exemples du benchmark Text2CAD-Bench (niveaux L1–L4)</div></div>
+        <div class="kpi"><div class="v">221</div><div class="l">Skills open-source pour la construction (DDC)</div></div>
+        <div class="kpi"><div class="v">100 %</div><div class="l">taux d'exécution du pipeline multi-agent CAO CADSmith</div></div>
       </div>
     </div>
   </section>
@@ -424,6 +466,42 @@
     </div>
   </section>
 
+  <!-- ================= BENCHMARK ================= -->
+  <section id="benchmark">
+    <div class="container">
+      <div class="sec-head reveal">
+        <div class="sec-ic">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3ee6ff" stroke-width="1.6"><path d="M3 3v18h18"/><rect x="7" y="11" width="3" height="7"/><rect x="12" y="7" width="3" height="11"/><rect x="17" y="13" width="3" height="5"/></svg>
+        </div>
+        <h2>Benchmarks : où en sont les agents en mai 2026 ?</h2>
+      </div>
+      <p class="sub reveal">Deux familles de mesures à distinguer : la performance des <strong>agents de code</strong> (SWE-bench Verified, mature) et la qualité de la <strong>génération CAO / STEP</strong> (benchmarks dédiés, encore jeunes).</p>
+
+      <div class="figure-wrap reveal">
+        <div class="svg-card">
+          <h3 style="margin-bottom:14px;font-size:16px">Agents de code — SWE-bench Verified</h3>
+          <div class="bars">
+            <div class="bar"><span class="name">GPT-5.5</span><span class="track"><span class="fill" style="--w:88.7%"></span></span><span class="score">88,7</span></div>
+            <div class="bar cl"><span class="name">Claude Opus 4.8</span><span class="track"><span class="fill" style="--w:88.6%"></span></span><span class="score">88,6</span></div>
+            <div class="bar cl"><span class="name">Claude Opus 4.7</span><span class="track"><span class="fill" style="--w:87.6%"></span></span><span class="score">87,6</span></div>
+            <div class="bar"><span class="name">GPT-5.3-Codex</span><span class="track"><span class="fill" style="--w:85%"></span></span><span class="score">85,0</span></div>
+            <div class="bar cl"><span class="name">Claude Sonnet 4.6</span><span class="track"><span class="fill" style="--w:79.6%"></span></span><span class="score">79,6</span></div>
+            <div class="bar cl"><span class="name">Claude Haiku 4.5</span><span class="track"><span class="fill" style="--w:73.3%"></span></span><span class="score">73,3</span></div>
+          </div>
+          <p class="mono" style="color:var(--muted);font-size:12px;margin-top:14px">% de tickets résolus · scores agrégés de leaderboards publics, variables selon le harness et la date.</p>
+        </div>
+        <div class="grid" style="gap:14px">
+          <article class="card"><span class="tag cy">Text2CAD-Bench</span><h3>Évaluer le text-to-CAD</h3><p>600 exemples humains sur 4 niveaux, de la géométrie standard (L1–L2) à la topologie complexe et aux surfaces libres (L3), jusqu'aux domaines réels (L4). Les modèles chutent nettement sur les features avancées.</p></article>
+          <article class="card"><span class="tag vi">CadBench</span><h3>Complexité par faces B-rep</h3><p>Benchmark multimodal qui répartit les pièces selon le nombre de faces B-rep — une mesure objective de complexité géométrique pour la génération de programmes CAO.</p></article>
+          <article class="card"><span class="tag gr">CADSmith</span><h3>Multi-agent + validation géométrique</h3><p>100 % d'exécution, F1 médian 0,985, IoU 0,963 et distance de Chamfer ramenée de 28,37 à 0,74 grâce à une validation géométrique programmatique.</p></article>
+          <article class="card"><span class="tag or">STEP-LLM</span><h3>STEP direct depuis le langage</h3><p>Premier cadre unifié générant directement des fichiers STEP, combinant RAG (contexte enrichi) et apprentissage par renforcement à récompenses géométriques.</p></article>
+        </div>
+      </div>
+
+      <blockquote class="reveal">Prudence méthodologique : les leaderboards de code (SWE-bench) sont matures mais évoluent chaque semaine et dépendent du <em>harness</em> ; les benchmarks CAO/STEP, eux, sont récents et mesurent surtout la <strong>fidélité géométrique</strong> sur des pièces relativement simples. Aucun ne garantit encore un livrable prêt pour l'usinage.</blockquote>
+    </div>
+  </section>
+
   <!-- ================= OUTILS ================= -->
   <section id="outils">
     <div class="container">
@@ -462,6 +540,26 @@
     </div>
   </section>
 
+  <!-- ================= GLOSSAIRE ================= -->
+  <section id="glossaire">
+    <div class="container">
+      <div class="sec-head reveal">
+        <div class="sec-ic">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#a07bff" stroke-width="1.6"><path d="M4 4h13a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4z"/><path d="M4 4v14a2 2 0 0 0 2 2h11"/></svg>
+        </div>
+        <h2>Glossaire</h2>
+      </div>
+      <dl class="gloss reveal">
+        <div class="term"><dt>MCP</dt><dd>Model Context Protocol — standard qui expose des outils et des données à un agent comme des fonctions appelables.</dd></div>
+        <div class="term"><dt>BIM</dt><dd>Building Information Modeling — maquette numérique enrichie d'un bâtiment (géométrie + données).</dd></div>
+        <div class="term"><dt>STEP</dt><dd>Format CAO neutre (ISO 10303) décrivant une géométrie paramétrique éditable, interopérable entre logiciels.</dd></div>
+        <div class="term"><dt>IFC</dt><dd>Industry Foundation Classes — format d'échange ouvert pour les données BIM.</dd></div>
+        <div class="term"><dt>B-rep</dt><dd>Boundary Representation — description d'un solide par ses faces, arêtes et sommets.</dd></div>
+        <div class="term"><dt>Distance de Chamfer</dt><dd>Métrique mesurant l'écart entre deux nuages de points ; sert à noter la fidélité d'une forme générée.</dd></div>
+      </dl>
+    </div>
+  </section>
+
   <!-- ================= SOURCES ================= -->
   <section id="sources">
     <div class="container">
@@ -481,6 +579,12 @@
         <li><a href="https://www.getleo.ai/blog/best-ai-for-cad-generation-2026" target="_blank" rel="noopener">Leo AI — Best AI for CAD Generation 2026</a></li>
         <li><a href="https://www.energent.ai/energent/compare/en/ai-tools-for-stl-to-step" target="_blank" rel="noopener">Energent.ai — Outils STL → STEP</a></li>
         <li><a href="https://www.engineering.com/3-ai-features-coming-to-every-cad-program-in-2026/" target="_blank" rel="noopener">Engineering.com — 3 fonctions IA dans tous les CAO</a></li>
+        <li><a href="https://www.marc0.dev/en/leaderboard" target="_blank" rel="noopener">SWE-bench Leaderboard (mai 2026)</a></li>
+        <li><a href="https://www.morphllm.com/claude-benchmarks" target="_blank" rel="noopener">MorphLLM — Claude Benchmarks 2026</a></li>
+        <li><a href="https://arxiv.org/html/2605.18430" target="_blank" rel="noopener">Text2CAD-Bench — benchmark text-to-CAD paramétrique</a></li>
+        <li><a href="https://arxiv.org/html/2605.10873v1" target="_blank" rel="noopener">CadBench — benchmark multimodal CAO</a></li>
+        <li><a href="https://arxiv.org/pdf/2603.26512" target="_blank" rel="noopener">CADSmith — génération CAO multi-agent</a></li>
+        <li><a href="https://arxiv.org/pdf/2601.12641" target="_blank" rel="noopener">STEP-LLM — génération de fichiers STEP par LLM</a></li>
       </ul>
     </div>
   </section>
@@ -490,7 +594,7 @@
 <footer>
   <div class="container footer-row">
     <div>© 2026 — Veille IA & Claude Code · Architecture, 3D, CAO.</div>
-    <div class="mono">Illustrations générées par IA (SVG) · 23 mai 2026.</div>
+    <div class="mono">Illustrations générées par IA (SVG) · mis à jour le 28 mai 2026.</div>
   </div>
 </footer>
 
