@@ -323,14 +323,13 @@ select {
   <div id="report-content"></div>
 </div>
 
-<!-- Three.js from CDN -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<!-- OrbitControls inline (r128 compatible) -->
-<script>
+<script type="module">
+import * as THREE from './node_modules/three/build/three.module.min.js';
+
 // ─────────────────────────────────────────────────────────────
-// Minimal OrbitControls (r128 compatible, no module import)
+// Minimal OrbitControls (ES module version)
 // ─────────────────────────────────────────────────────────────
-THREE.OrbitControls = function(camera, domElement) {
+function OrbitControls(camera, domElement) {
   this.camera = camera;
   this.domElement = domElement;
   this.enabled = true;
@@ -473,10 +472,8 @@ THREE.OrbitControls = function(camera, domElement) {
     domElement.removeEventListener('wheel', onWheel);
     domElement.removeEventListener('contextmenu', onContextMenu);
   };
-};
-</script>
+}
 
-<script>
 // ═══════════════════════════════════════════════════════
 //  STATE
 // ═══════════════════════════════════════════════════════
@@ -517,7 +514,7 @@ scene.fog = new THREE.Fog(0x0d1117, 800, 2000);
 const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 5000);
 camera.position.set(350, 280, 380);
 
-const controls = new THREE.OrbitControls(camera, renderer.domElement);
+const controls = new OrbitControls(camera, renderer.domElement);
 controls.target.set(0, 0, 0);
 controls.update();
 
@@ -1194,6 +1191,19 @@ setTimeout(() => {
   loading.style.opacity = '0';
   setTimeout(() => loading.style.display = 'none', 500);
 }, 800);
+
+// Expose functions to window for onclick= HTML attributes
+window.setAssemblyType = setAssemblyType;
+window.updateBoltDiam = updateBoltDiam;
+window.updateBoltClass = updateBoltClass;
+window.updateGeom = updateGeom;
+window.updateForce = updateForce;
+window.updateStiffeners = updateStiffeners;
+window.addBoltRow = addBoltRow;
+window.clearAll = clearAll;
+window.showReport = showReport;
+window.closeReport = closeReport;
+window.setMode = setMode;
 </script>
 </body>
 </html>
