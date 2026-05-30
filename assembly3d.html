@@ -1,0 +1,1199 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Assemblage 3D Acier-Bois / Acier-Acier</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', sans-serif; background: #1a1a2e; color: #eee; overflow: hidden; }
+
+#canvas-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; }
+
+/* ── Sidebar ── */
+#sidebar {
+  position: fixed; left: 0; top: 0; width: 280px; height: 100%;
+  background: linear-gradient(180deg, #16213e 0%, #0f3460 100%);
+  border-right: 1px solid #334;
+  display: flex; flex-direction: column;
+  z-index: 10; overflow-y: auto;
+  box-shadow: 4px 0 20px rgba(0,0,0,0.5);
+}
+#sidebar h1 {
+  font-size: 14px; font-weight: 700; letter-spacing: 1px;
+  padding: 16px; text-transform: uppercase; color: #4fc3f7;
+  border-bottom: 1px solid #334;
+}
+.section { padding: 12px 16px; border-bottom: 1px solid #223; }
+.section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #78909c; margin-bottom: 8px; }
+
+/* Assembly type selector */
+.type-btns { display: flex; gap: 6px; }
+.type-btn {
+  flex: 1; padding: 8px 4px; border: 1px solid #334; border-radius: 6px;
+  background: #1a2a4a; color: #aaa; font-size: 12px; cursor: pointer;
+  transition: all .2s; text-align: center;
+}
+.type-btn.active { background: #0288d1; color: #fff; border-color: #0288d1; }
+.type-btn:hover:not(.active) { background: #1e3a5a; }
+
+/* Bolt tool */
+.bolt-tool {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px; border: 2px dashed #334; border-radius: 8px;
+  background: #1a2a4a; cursor: grab; user-select: none;
+  transition: all .2s; color: #ccc; font-size: 13px;
+}
+.bolt-tool:hover { border-color: #4fc3f7; background: #1e3a5a; color: #4fc3f7; }
+.bolt-tool.dragging { opacity: 0.5; cursor: grabbing; }
+.bolt-icon { font-size: 22px; }
+
+/* Sliders */
+label { font-size: 12px; color: #90a4ae; display: block; margin-bottom: 4px; margin-top: 8px; }
+input[type=range] {
+  width: 100%; height: 4px; border-radius: 2px;
+  background: #334; outline: none; -webkit-appearance: none;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 14px; height: 14px;
+  border-radius: 50%; background: #4fc3f7; cursor: pointer;
+}
+.val { float: right; color: #4fc3f7; }
+
+/* Selects */
+select {
+  width: 100%; padding: 6px 8px; border-radius: 6px; border: 1px solid #334;
+  background: #1a2a4a; color: #eee; font-size: 12px; outline: none;
+}
+
+/* Action buttons */
+.btn {
+  width: 100%; padding: 10px; margin-top: 6px; border: none; border-radius: 8px;
+  font-size: 13px; font-weight: 600; cursor: pointer; transition: all .2s;
+  letter-spacing: 0.5px;
+}
+.btn-primary { background: #0288d1; color: #fff; }
+.btn-primary:hover { background: #039be5; transform: translateY(-1px); }
+.btn-danger { background: #c62828; color: #fff; }
+.btn-danger:hover { background: #e53935; }
+.btn-success { background: #2e7d32; color: #fff; }
+.btn-success:hover { background: #388e3c; }
+
+/* Stats */
+.stat { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; }
+.stat-label { font-size: 12px; color: #78909c; }
+.stat-val { font-size: 13px; font-weight: 600; }
+.ok { color: #66bb6a; }
+.warn { color: #ffa726; }
+.fail { color: #ef5350; }
+
+/* Stress bar */
+.stress-bar { height: 6px; border-radius: 3px; margin-top: 4px; background: linear-gradient(90deg,#4caf50,#ff5722); }
+.stress-indicator {
+  width: 10px; height: 10px; border-radius: 50%; background: #fff;
+  margin-top: -8px; position: relative; transition: left .3s;
+  box-shadow: 0 0 6px rgba(255,255,255,.8);
+}
+
+/* Color legend */
+.legend { display: flex; gap: 0; height: 12px; border-radius: 4px; overflow: hidden; margin-top: 6px; }
+.legend-seg { flex: 1; }
+.legend-labels { display: flex; justify-content: space-between; font-size: 10px; color: #78909c; margin-top: 2px; }
+
+/* Suggestions panel */
+#suggestions {
+  position: fixed; right: 0; top: 0; width: 260px; height: 100%;
+  background: linear-gradient(180deg, #16213e 0%, #0f3460 100%);
+  border-left: 1px solid #334; z-index: 10;
+  display: flex; flex-direction: column;
+  box-shadow: -4px 0 20px rgba(0,0,0,0.5);
+}
+#suggestions h2 { font-size: 13px; font-weight: 700; padding: 16px; color: #a5d6a7; border-bottom: 1px solid #334; text-transform: uppercase; letter-spacing: 1px; }
+.suggestion {
+  margin: 8px 12px; padding: 10px; border-radius: 8px;
+  background: #1a2a4a; border-left: 3px solid #4fc3f7;
+  font-size: 12px; line-height: 1.5; color: #ccc;
+  cursor: pointer; transition: all .2s;
+}
+.suggestion:hover { background: #1e3a5a; border-left-color: #66bb6a; color: #fff; }
+.suggestion .sug-title { font-weight: 600; color: #4fc3f7; margin-bottom: 4px; }
+.suggestion.warn-sug { border-left-color: #ffa726; }
+.suggestion.warn-sug .sug-title { color: #ffa726; }
+.suggestion.ok-sug { border-left-color: #66bb6a; }
+.suggestion.ok-sug .sug-title { color: #66bb6a; }
+
+/* Tooltip */
+#tooltip {
+  position: fixed; background: rgba(0,0,0,0.85); color: #fff;
+  padding: 8px 12px; border-radius: 6px; font-size: 12px;
+  pointer-events: none; z-index: 100; display: none;
+  border: 1px solid #334; max-width: 200px; line-height: 1.5;
+}
+
+/* Drag ghost */
+#drag-ghost {
+  position: fixed; width: 24px; height: 24px; border-radius: 50%;
+  background: #ffd54f; border: 3px solid #ff8f00;
+  pointer-events: none; z-index: 200; display: none;
+  box-shadow: 0 0 12px rgba(255,213,79,0.8);
+  transform: translate(-50%,-50%);
+}
+
+/* Report modal */
+#report-modal {
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  background: #16213e; border: 1px solid #334; border-radius: 12px;
+  width: 480px; max-height: 80vh; overflow-y: auto;
+  z-index: 300; display: none; padding: 24px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+}
+#report-modal h3 { color: #4fc3f7; margin-bottom: 16px; font-size: 16px; }
+.report-section { margin-bottom: 16px; }
+.report-section h4 { color: #90a4ae; font-size: 13px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+.report-row { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #223; font-size: 13px; }
+.modal-close { float: right; background: #c62828; border: none; color: #fff; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+#modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 299; display: none; }
+
+/* Toolbar top */
+#toolbar {
+  position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 8px; z-index: 10;
+}
+.tool-btn {
+  padding: 8px 16px; border-radius: 20px; border: 1px solid #334;
+  background: rgba(22,33,62,0.9); color: #ccc; font-size: 12px;
+  cursor: pointer; transition: all .2s; backdrop-filter: blur(4px);
+}
+.tool-btn.active { background: #0288d1; color: #fff; border-color: #0288d1; }
+.tool-btn:hover:not(.active) { background: rgba(30,58,90,0.9); color: #fff; }
+
+/* Loading */
+#loading {
+  position: fixed; inset: 0; background: #1a1a2e;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  z-index: 1000; transition: opacity 0.5s;
+}
+.loader { width: 50px; height: 50px; border: 4px solid #334; border-top-color: #4fc3f7; border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+#loading p { margin-top: 16px; color: #78909c; font-size: 14px; }
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="loader"></div>
+  <p>Chargement du visualiseur 3D...</p>
+</div>
+
+<div id="canvas-container"></div>
+
+<!-- Top toolbar -->
+<div id="toolbar">
+  <button class="tool-btn active" id="btn-orbit" onclick="setMode('orbit')">Orbite</button>
+  <button class="tool-btn" id="btn-pan" onclick="setMode('pan')">Panoramique</button>
+  <button class="tool-btn" id="btn-select" onclick="setMode('select')">Sélection</button>
+  <button class="tool-btn" id="btn-delete" onclick="setMode('delete')">Supprimer boulon</button>
+</div>
+
+<!-- Left sidebar -->
+<div id="sidebar">
+  <h1>⚙ Assemblage 3D</h1>
+
+  <div class="section">
+    <div class="section-title">Type d'assemblage</div>
+    <div class="type-btns">
+      <div class="type-btn active" onclick="setAssemblyType('steel-wood',this)">Acier-Bois</div>
+      <div class="type-btn" onclick="setAssemblyType('steel-steel',this)">Acier-Acier</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Glisser un boulon</div>
+    <div class="bolt-tool" id="bolt-drag-source" draggable="true">
+      <span class="bolt-icon">🔩</span>
+      <div>
+        <div style="font-weight:600">Boulon M<span id="bolt-size-label">16</span></div>
+        <div style="font-size:11px;color:#78909c">Glisser sur la plaque</div>
+      </div>
+    </div>
+    <label>Diamètre boulon <span class="val" id="bolt-d-val">M16</span></label>
+    <input type="range" id="bolt-diameter" min="0" max="4" step="1" value="2" oninput="updateBoltDiam(this.value)">
+    <label>Résistance Fv,Rd <span class="val" id="fv-val">45.2 kN</span></label>
+    <label>Classe de boulon</label>
+    <select id="bolt-class" onchange="updateBoltClass()">
+      <option value="4.6">4.6 — F_v = 0.6 f_ub</option>
+      <option value="5.6">5.6 — F_v = 0.6 f_ub</option>
+      <option value="8.8" selected>8.8 — F_v = 0.6 f_ub</option>
+      <option value="10.9">10.9 — F_v = 0.5 f_ub</option>
+    </select>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Géométrie des pièces</div>
+    <label>Longueur recouvrement <span class="val" id="lv-val">200 mm</span></label>
+    <input type="range" id="lap-length" min="100" max="400" step="10" value="200" oninput="updateGeom()">
+    <label>Largeur plaque <span class="val" id="wp-val">120 mm</span></label>
+    <input type="range" id="plate-width" min="80" max="240" step="10" value="120" oninput="updateGeom()">
+    <label>Épaisseur plaque <span class="val" id="tp-val">10 mm</span></label>
+    <input type="range" id="plate-thick" min="5" max="30" step="1" value="10" oninput="updateGeom()">
+  </div>
+
+  <div class="section">
+    <div class="section-title">Charge appliquée</div>
+    <label>Effort de traction N <span class="val" id="force-val">80 kN</span></label>
+    <input type="range" id="applied-force" min="10" max="400" step="5" value="80" oninput="updateForce()">
+    <label>Direction</label>
+    <select id="force-dir">
+      <option value="x" selected>Axiale (X)</option>
+      <option value="z">Transversale (Z)</option>
+    </select>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Raidisseurs</div>
+    <label><input type="checkbox" id="stiff-top" onchange="updateStiffeners()"> Raidisseur supérieur</label><br>
+    <label><input type="checkbox" id="stiff-bot" onchange="updateStiffeners()"> Raidisseur inférieur</label><br>
+    <label><input type="checkbox" id="stiff-web" onchange="updateStiffeners()"> Raidisseur âme</label>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Résultats EF simplifiés</div>
+    <div class="stat">
+      <span class="stat-label">Nbre boulons</span>
+      <span class="stat-val" id="r-nbolt">0</span>
+    </div>
+    <div class="stat">
+      <span class="stat-label">Effort / boulon</span>
+      <span class="stat-val" id="r-fbolt">— kN</span>
+    </div>
+    <div class="stat">
+      <span class="stat-label">Capacité totale</span>
+      <span class="stat-val" id="r-cap">— kN</span>
+    </div>
+    <div class="stat">
+      <span class="stat-label">Taux utilisation</span>
+      <span class="stat-val" id="r-util">—</span>
+    </div>
+    <div style="margin-top:8px">
+      <div class="stress-bar" id="stress-bar-bg"></div>
+      <div style="position:relative;height:10px">
+        <div class="stress-indicator" id="stress-indicator" style="left:0%"></div>
+      </div>
+      <div class="legend-labels"><span>0%</span><span>50%</span><span>100%</span></div>
+    </div>
+    <div class="stat" style="margin-top:8px">
+      <span class="stat-label">Vérification Eurocode 3</span>
+      <span class="stat-val" id="r-check">—</span>
+    </div>
+    <div class="stat">
+      <span class="stat-label">σ max plaque</span>
+      <span class="stat-val" id="r-sigma">—</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Contraintes (légende)</div>
+    <div class="legend" id="legend-bar"></div>
+    <div class="legend-labels"><span>0 MPa</span><span>175</span><span>355 MPa</span></div>
+  </div>
+
+  <div class="section">
+    <button class="btn btn-primary" onclick="addBoltRow()">+ Rangée de boulons</button>
+    <button class="btn btn-success" onclick="showReport()">📊 Rapport visuel</button>
+    <button class="btn btn-danger" onclick="clearAll()">🗑 Effacer tout</button>
+  </div>
+</div>
+
+<!-- Right suggestions panel -->
+<div id="suggestions">
+  <h2>💡 Suggestions</h2>
+  <div id="sug-list"></div>
+</div>
+
+<!-- Tooltip -->
+<div id="tooltip"></div>
+
+<!-- Drag ghost -->
+<div id="drag-ghost"></div>
+
+<!-- Report modal -->
+<div id="modal-overlay" onclick="closeReport()"></div>
+<div id="report-modal">
+  <h3>📊 Rapport d'assemblage <button class="modal-close" onclick="closeReport()">Fermer</button></h3>
+  <div id="report-content"></div>
+</div>
+
+<!-- Three.js from CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<!-- OrbitControls inline (r128 compatible) -->
+<script>
+// ─────────────────────────────────────────────────────────────
+// Minimal OrbitControls (r128 compatible, no module import)
+// ─────────────────────────────────────────────────────────────
+THREE.OrbitControls = function(camera, domElement) {
+  this.camera = camera;
+  this.domElement = domElement;
+  this.enabled = true;
+  this.enablePan = true;
+  this.enableZoom = true;
+  this.target = new THREE.Vector3();
+  this.minDistance = 50; this.maxDistance = 2000;
+  this.minPolarAngle = 0; this.maxPolarAngle = Math.PI;
+
+  let _this = this;
+  let STATE = { NONE:-1, ROTATE:0, DOLLY:1, PAN:2 };
+  let state = STATE.NONE;
+  let spherical = new THREE.Spherical();
+  let sphericalDelta = new THREE.Spherical();
+  let scale = 1;
+  let panOffset = new THREE.Vector3();
+  let rotateStart = new THREE.Vector2();
+  let rotateEnd = new THREE.Vector2();
+  let rotateDelta = new THREE.Vector2();
+  let panStart = new THREE.Vector2();
+  let panEnd = new THREE.Vector2();
+  let panDelta = new THREE.Vector2();
+  let dollyStart = new THREE.Vector2();
+  let dollyEnd = new THREE.Vector2();
+  let dollyDelta = new THREE.Vector2();
+
+  let EPS = 0.000001;
+  let rotateSpeed = 1.0; let zoomSpeed = 1.2; let panSpeed = 1.0;
+
+  function getZoomScale() { return Math.pow(0.95, zoomSpeed); }
+
+  function rotateLeft(angle) { sphericalDelta.theta -= angle; }
+  function rotateUp(angle) { sphericalDelta.phi -= angle; }
+
+  let panLeftV = new THREE.Vector3();
+  function panLeft(dist, matrix) {
+    panLeftV.setFromMatrixColumn(matrix, 0);
+    panLeftV.multiplyScalar(-dist);
+    panOffset.add(panLeftV);
+  }
+  let panUpV = new THREE.Vector3();
+  function panUp(dist, matrix) {
+    panUpV.setFromMatrixColumn(matrix, 1);
+    panUpV.multiplyScalar(dist);
+    panOffset.add(panUpV);
+  }
+  let panV = new THREE.Vector3();
+  function pan(deltaX, deltaY) {
+    let el = _this.domElement;
+    let fov = _this.camera.fov * Math.PI / 180;
+    let h = _this.camera.position.distanceTo(_this.target) * Math.tan(fov / 2) * 2;
+    panLeft(panSpeed * deltaX * h / el.clientHeight, _this.camera.matrix);
+    panUp(panSpeed * deltaY * h / el.clientHeight, _this.camera.matrix);
+  }
+
+  function dollyIn(s) { scale /= s; }
+  function dollyOut(s) { scale *= s; }
+
+  this.update = function() {
+    let offset = new THREE.Vector3();
+    let quat = new THREE.Quaternion().setFromUnitVectors(camera.up, new THREE.Vector3(0,1,0));
+    let quatInverse = quat.clone().invert();
+    let lastPosition = new THREE.Vector3();
+    let lastQuaternion = new THREE.Quaternion();
+
+    return function update() {
+      let position = _this.camera.position;
+      offset.copy(position).sub(_this.target);
+      offset.applyQuaternion(quat);
+      spherical.setFromVector3(offset);
+      spherical.theta += sphericalDelta.theta;
+      spherical.phi += sphericalDelta.phi;
+      spherical.phi = Math.max(_this.minPolarAngle, Math.min(_this.maxPolarAngle, spherical.phi));
+      spherical.makeSafe();
+      spherical.radius *= scale;
+      spherical.radius = Math.max(_this.minDistance, Math.min(_this.maxDistance, spherical.radius));
+      _this.target.add(panOffset);
+      offset.setFromSpherical(spherical);
+      offset.applyQuaternion(quatInverse);
+      position.copy(_this.target).add(offset);
+      _this.camera.lookAt(_this.target);
+      sphericalDelta.set(0,0,0);
+      scale = 1;
+      panOffset.set(0,0,0);
+    };
+  }();
+
+  function onMouseDown(e) {
+    if (!_this.enabled) return;
+    if (e.button === 0) { state = STATE.ROTATE; rotateStart.set(e.clientX, e.clientY); }
+    else if (e.button === 1) { state = STATE.DOLLY; dollyStart.set(e.clientX, e.clientY); }
+    else if (e.button === 2) { state = STATE.PAN; panStart.set(e.clientX, e.clientY); }
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  }
+  function onMouseMove(e) {
+    if (!_this.enabled) return;
+    if (state === STATE.ROTATE) {
+      rotateEnd.set(e.clientX, e.clientY);
+      rotateDelta.subVectors(rotateEnd, rotateStart).multiplyScalar(rotateSpeed);
+      let el = _this.domElement;
+      rotateLeft(2 * Math.PI * rotateDelta.x / el.clientHeight);
+      rotateUp(2 * Math.PI * rotateDelta.y / el.clientHeight);
+      rotateStart.copy(rotateEnd);
+    } else if (state === STATE.DOLLY) {
+      dollyEnd.set(e.clientX, e.clientY);
+      dollyDelta.subVectors(dollyEnd, dollyStart);
+      if (dollyDelta.y > 0) dollyIn(getZoomScale());
+      else if (dollyDelta.y < 0) dollyOut(getZoomScale());
+      dollyStart.copy(dollyEnd);
+    } else if (state === STATE.PAN) {
+      panEnd.set(e.clientX, e.clientY);
+      panDelta.subVectors(panEnd, panStart).multiplyScalar(panSpeed);
+      pan(panDelta.x, panDelta.y);
+      panStart.copy(panEnd);
+    }
+    _this.update();
+  }
+  function onMouseUp() {
+    document.removeEventListener('mousemove', onMouseMove);
+    document.removeEventListener('mouseup', onMouseUp);
+    state = STATE.NONE;
+  }
+  function onWheel(e) {
+    if (!_this.enabled || !_this.enableZoom) return;
+    e.preventDefault();
+    if (e.deltaY < 0) dollyOut(getZoomScale());
+    else dollyIn(getZoomScale());
+    _this.update();
+  }
+  function onContextMenu(e) { if (_this.enabled) e.preventDefault(); }
+
+  domElement.addEventListener('mousedown', onMouseDown);
+  domElement.addEventListener('wheel', onWheel, {passive:false});
+  domElement.addEventListener('contextmenu', onContextMenu);
+
+  this.update();
+  this.dispose = function() {
+    domElement.removeEventListener('mousedown', onMouseDown);
+    domElement.removeEventListener('wheel', onWheel);
+    domElement.removeEventListener('contextmenu', onContextMenu);
+  };
+};
+</script>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════
+const BOLT_DIAMETERS = [12, 14, 16, 20, 24];
+const BOLT_FUB = { '4.6': 400, '5.6': 500, '8.8': 800, '10.9': 1000 };
+const FY_STEEL = 355; // MPa
+
+let state = {
+  assemblyType: 'steel-wood',
+  boltDiam: 16,
+  boltClass: '8.8',
+  lapLength: 200,
+  plateWidth: 120,
+  plateThick: 10,
+  appliedForce: 80,
+  bolts: [],          // {x, y (local plate coords in mm), mesh, label}
+  stiffeners: { top: false, bot: false, web: false },
+  mode: 'orbit',
+  isDraggingBolt: false,
+  hoveredBolt: null,
+};
+
+// ═══════════════════════════════════════════════════════
+//  THREE.JS SETUP
+// ═══════════════════════════════════════════════════════
+const container = document.getElementById('canvas-container');
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.setClearColor(0x0d1117);
+container.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0x0d1117, 800, 2000);
+
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 5000);
+camera.position.set(350, 280, 380);
+
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0, 0);
+controls.update();
+
+// Lights
+const ambientLight = new THREE.AmbientLight(0x334466, 0.8);
+scene.add(ambientLight);
+
+const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+dirLight.position.set(300, 400, 200);
+dirLight.castShadow = true;
+dirLight.shadow.mapSize.set(2048, 2048);
+dirLight.shadow.camera.near = 50;
+dirLight.shadow.camera.far = 2000;
+dirLight.shadow.camera.left = dirLight.shadow.camera.bottom = -400;
+dirLight.shadow.camera.right = dirLight.shadow.camera.top = 400;
+scene.add(dirLight);
+
+const pointLight1 = new THREE.PointLight(0x4fc3f7, 0.6, 600);
+pointLight1.position.set(-200, 200, 100);
+scene.add(pointLight1);
+
+const pointLight2 = new THREE.PointLight(0xffa726, 0.4, 400);
+pointLight2.position.set(200, -100, 200);
+scene.add(pointLight2);
+
+// Grid
+const grid = new THREE.GridHelper(600, 30, 0x223344, 0x1a2a3a);
+grid.position.y = -50;
+scene.add(grid);
+
+// ═══════════════════════════════════════════════════════
+//  SCENE OBJECTS
+// ═══════════════════════════════════════════════════════
+let assemblyGroup = new THREE.Group();
+scene.add(assemblyGroup);
+
+let plateMainMesh, plateSecMesh;
+let stiffMeshes = [];
+let boltMeshes = [];
+let arrowHelper;
+let stressOverlayMeshes = [];
+
+// Materials
+const steelMat = new THREE.MeshStandardMaterial({
+  color: 0x607d8b, metalness: 0.85, roughness: 0.25,
+  envMapIntensity: 1.0
+});
+const woodMat = new THREE.MeshStandardMaterial({
+  color: 0x8d6e63, metalness: 0.0, roughness: 0.8
+});
+const stiffMat = new THREE.MeshStandardMaterial({
+  color: 0x455a64, metalness: 0.9, roughness: 0.2
+});
+const boltMat = new THREE.MeshStandardMaterial({
+  color: 0xffd54f, metalness: 0.95, roughness: 0.1
+});
+const boltSelectedMat = new THREE.MeshStandardMaterial({
+  color: 0xff6e40, metalness: 0.95, roughness: 0.1, emissive: 0xff3d00, emissiveIntensity: 0.3
+});
+const ghostMat = new THREE.MeshStandardMaterial({
+  color: 0x4fc3f7, metalness: 0.5, roughness: 0.3,
+  transparent: true, opacity: 0.4
+});
+
+function buildScene() {
+  // Remove old meshes
+  assemblyGroup.clear();
+  stiffMeshes = [];
+  stressOverlayMeshes = [];
+
+  const L = state.lapLength;   // overlap length mm
+  const W = state.plateWidth;  // width mm
+  const T = state.plateThick;  // thickness mm
+  const SCALE = 0.8;           // scene units per mm
+
+  const lS = L * SCALE, wS = W * SCALE, tS = T * SCALE;
+  const totalLen = (L + 200) * SCALE;
+
+  // Main plate (left)
+  const mainGeo = new THREE.BoxGeometry(totalLen, tS, wS);
+  const mainMat2 = state.assemblyType === 'steel-wood' ? woodMat.clone() : steelMat.clone();
+  plateMainMesh = new THREE.Mesh(mainGeo, mainMat2);
+  plateMainMesh.position.set(-totalLen/2 + lS/2, 0, 0);
+  plateMainMesh.castShadow = true; plateMainMesh.receiveShadow = true;
+  plateMainMesh.userData = { type: 'plate', id: 'main' };
+  assemblyGroup.add(plateMainMesh);
+
+  // Secondary plate (right, steel)
+  const secGeo = new THREE.BoxGeometry(totalLen, tS, wS);
+  plateSecMesh = new THREE.Mesh(secGeo, steelMat.clone());
+  plateSecMesh.position.set(totalLen/2 - lS/2, 0, 0);
+  plateSecMesh.castShadow = true; plateSecMesh.receiveShadow = true;
+  plateSecMesh.userData = { type: 'plate', id: 'sec' };
+  assemblyGroup.add(plateSecMesh);
+
+  // Stiffeners
+  if (state.stiffeners.top) addStiffener(0, wS/2 + tS/2, lS, tS, wS);
+  if (state.stiffeners.bot) addStiffener(0, -wS/2 - tS/2, lS, tS, wS);
+  if (state.stiffeners.web) addStiffener(0, 0, lS, tS, wS*0.6, true);
+
+  // Force arrow
+  updateForceArrow();
+
+  // Rebuild bolt meshes
+  rebuildBolts();
+
+  // Stress overlays
+  updateStressOverlay();
+}
+
+function addStiffener(x, z, lapLen, tS, wS, isWeb=false) {
+  const geo = isWeb
+    ? new THREE.BoxGeometry(lapLen, tS * 0.6, tS)
+    : new THREE.BoxGeometry(lapLen, tS * 0.5, tS * 1.5);
+  const mesh = new THREE.Mesh(geo, stiffMat.clone());
+  mesh.position.set(x, isWeb ? 0 : z * 0.5, z);
+  mesh.castShadow = true;
+  assemblyGroup.add(mesh);
+  stiffMeshes.push(mesh);
+}
+
+function updateForceArrow() {
+  if (arrowHelper) assemblyGroup.remove(arrowHelper);
+  const L = state.lapLength * 0.8;
+  const dir = new THREE.Vector3(1, 0, 0);
+  const origin = new THREE.Vector3(-(L/2 + 80), 0, 0);
+  arrowHelper = new THREE.ArrowHelper(dir, origin, 70, 0xff6e40, 20, 12);
+  assemblyGroup.add(arrowHelper);
+
+  const dir2 = new THREE.Vector3(-1, 0, 0);
+  const origin2 = new THREE.Vector3(L/2 + 80, 0, 0);
+  const arrow2 = new THREE.ArrowHelper(dir2, origin2, 70, 0xff6e40, 20, 12);
+  assemblyGroup.add(arrow2);
+}
+
+// ── Stress color: 0→green, 0.5→yellow, 1→red ──
+function stressColor(t) {
+  t = Math.max(0, Math.min(1, t));
+  const r = Math.round(t < 0.5 ? 2 * t * 255 : 255);
+  const g = Math.round(t < 0.5 ? 255 : 2 * (1 - t) * 255);
+  return (r << 16) | (g << 8);
+}
+
+function updateStressOverlay() {
+  stressOverlayMeshes.forEach(m => assemblyGroup.remove(m));
+  stressOverlayMeshes = [];
+
+  const n = state.bolts.length;
+  if (n === 0) { updateResults(); updateSuggestions(); return; }
+
+  const F = state.appliedForce;      // kN
+  const cap = boltCapacity() * n;    // kN
+  const util = Math.min(F / cap, 1.5);
+
+  // Plate stress map: subdivide plate into 8x4 patches
+  const L = state.lapLength * 0.8;
+  const W = state.plateWidth * 0.8;
+  const T = state.plateThick * 0.8;
+  const nx = 10, nz = 6;
+  const dx = L / nx, dz = W / nz;
+
+  for (let i = 0; i < nx; i++) {
+    for (let j = 0; j < nz; j++) {
+      const px = -L/2 + dx/2 + i * dx;
+      const pz = -W/2 + dz/2 + j * dz;
+      // stress contribution: higher near applied force, reduced near bolt rows
+      let stress = util;
+      // reduce stress near bolt centroids
+      state.bolts.forEach(b => {
+        const bx = (b.lx / state.lapLength - 0.5) * L;
+        const bz = (b.lz / state.plateWidth - 0.5) * W;
+        const dist = Math.sqrt((px-bx)**2 + (pz-bz)**2);
+        stress -= 0.25 * Math.exp(-dist*dist / (30*30));
+      });
+      stress = Math.max(0, Math.min(1.2, stress));
+
+      const geo = new THREE.BoxGeometry(dx*0.95, T*0.05, dz*0.95);
+      const mat = new THREE.MeshStandardMaterial({
+        color: stressColor(stress / 1.2),
+        transparent: true, opacity: 0.65,
+        metalness: 0, roughness: 0.8
+      });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(px, T/2 + 0.5, pz);
+      assemblyGroup.add(mesh);
+      stressOverlayMeshes.push(mesh);
+    }
+  }
+
+  updateResults();
+  updateSuggestions();
+}
+
+// ═══════════════════════════════════════════════════════
+//  BOLT MANAGEMENT
+// ═══════════════════════════════════════════════════════
+function boltCapacity() {
+  // Simplified EC3: Fv,Rd = αv * fub * As / γM2
+  const fub = BOLT_FUB[state.boltClass];
+  const d = state.boltDiam;
+  const As = Math.PI * (d * 0.9 / 2) ** 2;  // stressed area approx
+  const alpha = state.boltClass === '10.9' ? 0.5 : 0.6;
+  return (alpha * fub * As / 1.25) / 1000;   // kN
+}
+
+function rebuildBolts() {
+  boltMeshes.forEach(m => assemblyGroup.remove(m));
+  boltMeshes = [];
+  state.bolts.forEach((b, idx) => {
+    const mesh = createBoltMesh(b.lx, b.lz, idx);
+    b.mesh = mesh;
+    boltMeshes.push(mesh);
+  });
+}
+
+function createBoltMesh(lx, lz, idx) {
+  const d = state.boltDiam * 0.8 * 0.5;  // radius in scene units
+  const L = state.lapLength * 0.8;
+  const W = state.plateWidth * 0.8;
+  const T = state.plateThick * 0.8;
+
+  const x = (lx / state.lapLength - 0.5) * L;
+  const z = (lz / state.plateWidth - 0.5) * W;
+
+  const group = new THREE.Group();
+  group.position.set(x, 0, z);
+
+  // Shank
+  const shankGeo = new THREE.CylinderGeometry(d*0.8, d*0.8, T*2.5, 16);
+  const shankMesh = new THREE.Mesh(shankGeo, boltMat.clone());
+  shankMesh.rotation.z = Math.PI/2;
+  group.add(shankMesh);
+
+  // Head
+  const headGeo = new THREE.CylinderGeometry(d*1.5, d*1.5, d, 6);
+  const headMesh = new THREE.Mesh(headGeo, boltMat.clone());
+  headMesh.rotation.z = Math.PI/2;
+  headMesh.position.x = -T*1.2;
+  group.add(headMesh);
+
+  // Nut
+  const nutGeo = new THREE.CylinderGeometry(d*1.4, d*1.4, d, 6);
+  const nutMesh = new THREE.Mesh(nutGeo, boltMat.clone());
+  nutMesh.rotation.z = Math.PI/2;
+  nutMesh.position.x = T*1.2;
+  group.add(nutMesh);
+
+  // Washer L
+  const washGeo = new THREE.CylinderGeometry(d*2, d*2, d*0.3, 16);
+  const washL = new THREE.Mesh(washGeo, stiffMat.clone());
+  washL.rotation.z = Math.PI/2;
+  washL.position.x = -T*0.9;
+  group.add(washL);
+
+  // Washer R
+  const washR = new THREE.Mesh(washGeo.clone(), stiffMat.clone());
+  washR.rotation.z = Math.PI/2;
+  washR.position.x = T*0.9;
+  group.add(washR);
+
+  group.userData = { type: 'bolt', idx };
+  group.castShadow = true;
+
+  // Animate in
+  group.scale.setScalar(0.01);
+  assemblyGroup.add(group);
+
+  let t = 0;
+  const anim = () => {
+    t += 0.08;
+    const s = Math.min(1, t < 1 ? 1 - Math.pow(1-t, 3) : 1);
+    group.scale.setScalar(s);
+    if (s < 1) requestAnimationFrame(anim);
+  };
+  requestAnimationFrame(anim);
+
+  return group;
+}
+
+function placeBolt(lx, lz) {
+  // Enforce minimum edge distance (EC3: e1 >= 1.2d, e2 >= 1.2d)
+  const minE = 1.5 * state.boltDiam;
+  lx = Math.max(minE, Math.min(state.lapLength - minE, lx));
+  lz = Math.max(minE, Math.min(state.plateWidth - minE, lz));
+
+  // Enforce min spacing (EC3: p >= 2.2d)
+  const minP = 2.5 * state.boltDiam;
+  const tooClose = state.bolts.some(b => Math.hypot(b.lx - lx, b.lz - lz) < minP);
+  if (tooClose) {
+    showTooltipAt(mouseX, mouseY, '⚠ Espacement minimum non respecté (' + minP.toFixed(0) + ' mm)');
+    return false;
+  }
+  state.bolts.push({ lx, lz, mesh: null });
+  rebuildBolts();
+  updateStressOverlay();
+  return true;
+}
+
+function addBoltRow() {
+  const nCols = 2, spacing = Math.max(40, state.plateWidth / 3);
+  const rowX = state.lapLength / 2;
+  for (let c = 0; c < nCols; c++) {
+    const lz = state.plateWidth / 2 - spacing/2 + c * spacing;
+    placeBolt(rowX, lz);
+  }
+}
+
+function clearAll() {
+  state.bolts = [];
+  buildScene();
+}
+
+// ═══════════════════════════════════════════════════════
+//  RESULTS & SUGGESTIONS
+// ═══════════════════════════════════════════════════════
+function updateResults() {
+  const n = state.bolts.length;
+  const cap1 = boltCapacity();
+  const cap = cap1 * n;
+  const F = state.appliedForce;
+  const util = n > 0 ? F / cap : Infinity;
+  const fbolt = n > 0 ? F / n : 0;
+  const sigma = state.plateThick > 0
+    ? (F * 1000) / (state.plateWidth * state.plateThick) : 0;
+
+  document.getElementById('r-nbolt').textContent = n;
+  document.getElementById('r-fbolt').textContent = n > 0 ? fbolt.toFixed(1) + ' kN' : '—';
+  document.getElementById('r-cap').textContent = n > 0 ? cap.toFixed(1) + ' kN' : '—';
+
+  const utilPct = n > 0 ? (util * 100).toFixed(1) + '%' : '—';
+  const utilEl = document.getElementById('r-util');
+  utilEl.textContent = utilPct;
+  utilEl.className = 'stat-val ' + (util > 1 ? 'fail' : util > 0.85 ? 'warn' : 'ok');
+
+  const indEl = document.getElementById('stress-indicator');
+  indEl.style.left = Math.min(100, (util * 100)).toFixed(0) + '%';
+
+  const checkEl = document.getElementById('r-check');
+  if (n === 0) { checkEl.textContent = 'Aucun boulon'; checkEl.className = 'stat-val'; }
+  else if (util <= 1) { checkEl.textContent = '✓ OK'; checkEl.className = 'stat-val ok'; }
+  else { checkEl.textContent = '✗ Insuffisant'; checkEl.className = 'stat-val fail'; }
+
+  document.getElementById('r-sigma').textContent = sigma.toFixed(1) + ' MPa';
+
+  document.getElementById('fv-val').textContent = cap1.toFixed(1) + ' kN';
+}
+
+function updateSuggestions() {
+  const n = state.bolts.length;
+  const cap1 = boltCapacity();
+  const F = state.appliedForce;
+  const util = n > 0 ? F / (cap1 * n) : Infinity;
+  const sugs = [];
+
+  if (n === 0) {
+    sugs.push({ cls: 'warn-sug', title: '🔩 Ajouter des boulons', body: 'Aucun boulon placé. Faites glisser des boulons sur la plaque ou cliquez "+ Rangée".' });
+  } else if (util > 1) {
+    const needed = Math.ceil(F / cap1);
+    sugs.push({ cls: 'warn-sug', title: '⚠ Capacité insuffisante', body: `Il faut au moins ${needed} boulons M${state.boltDiam} cl.${state.boltClass} pour ce chargement.` });
+    sugs.push({ cls: 'warn-sug', title: '💡 Augmenter le diamètre', body: `Passer à M${BOLT_DIAMETERS[Math.min(4, BOLT_DIAMETERS.indexOf(state.boltDiam)+1)]} augmenterait la capacité de ~${((BOLT_DIAMETERS[Math.min(4, BOLT_DIAMETERS.indexOf(state.boltDiam)+1)] / state.boltDiam)**2 * 100 - 100).toFixed(0)}%.` });
+  } else if (util < 0.4) {
+    sugs.push({ cls: 'ok-sug', title: '✅ Sur-dimensionné', body: `Taux d'utilisation faible (${(util*100).toFixed(0)}%). Vous pouvez réduire le nombre de boulons ou la classe.` });
+  } else {
+    sugs.push({ cls: 'ok-sug', title: '✅ Configuration valide', body: `Taux d'utilisation: ${(util*100).toFixed(0)}%. Assemblage conforme EC3.` });
+  }
+
+  // Geometry advice
+  if (state.lapLength < 3 * state.boltDiam * n / 2 && n > 0) {
+    sugs.push({ cls: 'warn-sug', title: '📏 Recouvrement court', body: 'Augmentez la longueur de recouvrement pour respecter les distances aux bords.' });
+  }
+  if (!state.stiffeners.top && !state.stiffeners.bot && n > 4) {
+    sugs.push({ cls: '', title: '💡 Raidisseurs recommandés', body: 'Avec plus de 4 boulons, des raidisseurs latéraux améliorent la rigidité locale.' });
+  }
+
+  const container = document.getElementById('sug-list');
+  container.innerHTML = sugs.map(s => `
+    <div class="suggestion ${s.cls}">
+      <div class="sug-title">${s.title}</div>
+      ${s.body}
+    </div>
+  `).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+//  DRAG AND DROP
+// ═══════════════════════════════════════════════════════
+let mouseX = 0, mouseY = 0;
+const ghost = document.getElementById('drag-ghost');
+let isDragging = false;
+
+document.getElementById('bolt-drag-source').addEventListener('dragstart', e => {
+  isDragging = true;
+  ghost.style.display = 'block';
+  e.dataTransfer.effectAllowed = 'copy';
+  e.dataTransfer.setDragImage(new Image(), 0, 0);
+});
+document.getElementById('bolt-drag-source').addEventListener('dragend', () => {
+  isDragging = false;
+  ghost.style.display = 'none';
+});
+
+document.addEventListener('dragover', e => {
+  e.preventDefault();
+  mouseX = e.clientX; mouseY = e.clientY;
+  if (isDragging) {
+    ghost.style.left = e.clientX + 'px';
+    ghost.style.top = e.clientY + 'px';
+  }
+});
+
+renderer.domElement.addEventListener('drop', e => {
+  e.preventDefault();
+  isDragging = false;
+  ghost.style.display = 'none';
+  const pt = screenToPlate(e.clientX, e.clientY);
+  if (pt) placeBolt(pt.lx, pt.lz);
+});
+renderer.domElement.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; });
+
+// ── Raycasting: screen → plate local coords ──
+const raycaster = new THREE.Raycaster();
+const mouse2D = new THREE.Vector2();
+
+function screenToPlate(sx, sy) {
+  mouse2D.x = ((sx - 280) / (window.innerWidth - 280 - 260)) * 2 - 1;
+  mouse2D.y = -((sy) / window.innerHeight) * 2 + 1;
+  raycaster.setFromCamera(mouse2D, camera);
+
+  const targets = [plateMainMesh, plateSecMesh].filter(Boolean);
+  const hits = raycaster.intersectObjects(targets);
+  if (hits.length === 0) return null;
+
+  const hit = hits[0].point;
+  const L = state.lapLength * 0.8;
+  const W = state.plateWidth * 0.8;
+
+  // Convert scene X,Z → plate local [0, lapLength] x [0, plateWidth]
+  const lx = (hit.x / L + 0.5) * state.lapLength;
+  const lz = (hit.z / W + 0.5) * state.plateWidth;
+  return { lx, lz };
+}
+
+// ═══════════════════════════════════════════════════════
+//  MOUSE INTERACTION (select / hover / delete)
+// ═══════════════════════════════════════════════════════
+let selectedBolt = null;
+
+renderer.domElement.addEventListener('mousemove', e => {
+  mouseX = e.clientX; mouseY = e.clientY;
+  if (state.mode === 'select' || state.mode === 'delete') {
+    mouse2D.x = ((e.clientX - 280) / (window.innerWidth - 280 - 260)) * 2 - 1;
+    mouse2D.y = -(e.clientY / window.innerHeight) * 2 + 1;
+    raycaster.setFromCamera(mouse2D, camera);
+    const hits = raycaster.intersectObjects(assemblyGroup.children, true);
+    let foundBolt = null;
+    for (const h of hits) {
+      let obj = h.object;
+      while (obj.parent && obj.parent !== assemblyGroup) obj = obj.parent;
+      if (obj.userData && obj.userData.type === 'bolt') { foundBolt = obj; break; }
+    }
+    if (foundBolt !== state.hoveredBolt) {
+      state.hoveredBolt = foundBolt;
+      renderer.domElement.style.cursor = foundBolt ? 'pointer' : 'default';
+    }
+    if (foundBolt) {
+      const b = state.bolts[foundBolt.userData.idx];
+      const cap1 = boltCapacity();
+      const fbolt = state.bolts.length > 0 ? state.appliedForce / state.bolts.length : 0;
+      showTooltipAt(e.clientX, e.clientY,
+        `Boulon M${state.boltDiam} cl.${state.boltClass}<br>` +
+        `Position: (${b.lx.toFixed(0)}, ${b.lz.toFixed(0)}) mm<br>` +
+        `Effort: ${fbolt.toFixed(2)} kN / ${cap1.toFixed(2)} kN`);
+    } else {
+      hideTooltip();
+    }
+  }
+});
+
+renderer.domElement.addEventListener('click', e => {
+  if (state.mode === 'delete' && state.hoveredBolt) {
+    const idx = state.hoveredBolt.userData.idx;
+    state.bolts.splice(idx, 1);
+    rebuildBolts();
+    updateStressOverlay();
+    state.hoveredBolt = null;
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+//  TOOLTIP
+// ═══════════════════════════════════════════════════════
+const tooltipEl = document.getElementById('tooltip');
+let tooltipTimer;
+function showTooltipAt(x, y, html) {
+  tooltipEl.innerHTML = html;
+  tooltipEl.style.left = (x + 14) + 'px';
+  tooltipEl.style.top = (y - 10) + 'px';
+  tooltipEl.style.display = 'block';
+  clearTimeout(tooltipTimer);
+  tooltipTimer = setTimeout(hideTooltip, 3000);
+}
+function hideTooltip() { tooltipEl.style.display = 'none'; }
+
+// ═══════════════════════════════════════════════════════
+//  CONTROLS PANEL
+// ═══════════════════════════════════════════════════════
+const DIAM_LABELS = ['M12','M14','M16','M20','M24'];
+
+function updateBoltDiam(v) {
+  state.boltDiam = BOLT_DIAMETERS[v];
+  document.getElementById('bolt-d-val').textContent = 'M' + state.boltDiam;
+  document.getElementById('bolt-size-label').textContent = state.boltDiam;
+  updateResults();
+  updateStressOverlay();
+}
+
+function updateBoltClass() {
+  state.boltClass = document.getElementById('bolt-class').value;
+  updateResults();
+  updateStressOverlay();
+}
+
+function updateGeom() {
+  state.lapLength = parseInt(document.getElementById('lap-length').value);
+  state.plateWidth = parseInt(document.getElementById('plate-width').value);
+  state.plateThick = parseInt(document.getElementById('plate-thick').value);
+  document.getElementById('lv-val').textContent = state.lapLength + ' mm';
+  document.getElementById('wp-val').textContent = state.plateWidth + ' mm';
+  document.getElementById('tp-val').textContent = state.plateThick + ' mm';
+  buildScene();
+}
+
+function updateForce() {
+  state.appliedForce = parseInt(document.getElementById('applied-force').value);
+  document.getElementById('force-val').textContent = state.appliedForce + ' kN';
+  updateStressOverlay();
+}
+
+function updateStiffeners() {
+  state.stiffeners.top = document.getElementById('stiff-top').checked;
+  state.stiffeners.bot = document.getElementById('stiff-bot').checked;
+  state.stiffeners.web = document.getElementById('stiff-web').checked;
+  buildScene();
+}
+
+function setAssemblyType(type, el) {
+  state.assemblyType = type;
+  document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  buildScene();
+}
+
+function setMode(m) {
+  state.mode = m;
+  document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('btn-' + m).classList.add('active');
+  controls.enabled = (m === 'orbit' || m === 'pan');
+  renderer.domElement.style.cursor = m === 'delete' ? 'crosshair' : 'default';
+}
+
+// ═══════════════════════════════════════════════════════
+//  REPORT
+// ═══════════════════════════════════════════════════════
+function showReport() {
+  const n = state.bolts.length;
+  const cap1 = boltCapacity();
+  const cap = cap1 * n;
+  const F = state.appliedForce;
+  const util = n > 0 ? (F / cap * 100).toFixed(1) : '—';
+  const sigma = state.plateThick > 0 ? (F * 1000 / (state.plateWidth * state.plateThick)).toFixed(1) : '—';
+  const check = n > 0 && F <= cap ? '✓ CONFORME EC3' : '✗ NON CONFORME';
+
+  document.getElementById('report-content').innerHTML = `
+    <div class="report-section">
+      <h4>Configuration</h4>
+      <div class="report-row"><span>Type</span><span>${state.assemblyType === 'steel-wood' ? 'Acier-Bois' : 'Acier-Acier'}</span></div>
+      <div class="report-row"><span>Boulon</span><span>M${state.boltDiam} cl.${state.boltClass}</span></div>
+      <div class="report-row"><span>Nombre boulons</span><span>${n}</span></div>
+      <div class="report-row"><span>Recouvrement</span><span>${state.lapLength} mm</span></div>
+      <div class="report-row"><span>Largeur plaque</span><span>${state.plateWidth} mm</span></div>
+      <div class="report-row"><span>Épaisseur</span><span>${state.plateThick} mm</span></div>
+    </div>
+    <div class="report-section">
+      <h4>Résultats de calcul (EC3)</h4>
+      <div class="report-row"><span>Effort appliqué N</span><span>${F} kN</span></div>
+      <div class="report-row"><span>Résist. 1 boulon Fv,Rd</span><span>${cap1.toFixed(2)} kN</span></div>
+      <div class="report-row"><span>Capacité totale</span><span>${n>0?cap.toFixed(2):0} kN</span></div>
+      <div class="report-row"><span>Effort par boulon</span><span>${n>0?(F/n).toFixed(2):0} kN</span></div>
+      <div class="report-row"><span>Taux utilisation</span><span>${util}%</span></div>
+      <div class="report-row"><span>σ brut plaque</span><span>${sigma} MPa</span></div>
+      <div class="report-row"><span>Vérification</span><span style="color:${n>0&&F<=cap?'#66bb6a':'#ef5350'}">${check}</span></div>
+    </div>
+    <div class="report-section">
+      <h4>Positions boulons (mm)</h4>
+      ${n === 0 ? '<div style="color:#78909c;font-size:12px">Aucun boulon</div>' :
+        state.bolts.map((b,i) => `<div class="report-row"><span>Boulon ${i+1}</span><span>x=${b.lx.toFixed(0)}, z=${b.lz.toFixed(0)}</span></div>`).join('')}
+    </div>
+    <div class="report-section">
+      <h4>Raidisseurs</h4>
+      <div class="report-row"><span>Supérieur</span><span>${state.stiffeners.top?'Oui':'Non'}</span></div>
+      <div class="report-row"><span>Inférieur</span><span>${state.stiffeners.bot?'Oui':'Non'}</span></div>
+      <div class="report-row"><span>Âme</span><span>${state.stiffeners.web?'Oui':'Non'}</span></div>
+    </div>
+  `;
+  document.getElementById('modal-overlay').style.display = 'block';
+  document.getElementById('report-modal').style.display = 'block';
+}
+function closeReport() {
+  document.getElementById('modal-overlay').style.display = 'none';
+  document.getElementById('report-modal').style.display = 'none';
+}
+
+// ═══════════════════════════════════════════════════════
+//  LEGEND
+// ═══════════════════════════════════════════════════════
+function buildLegend() {
+  const bar = document.getElementById('legend-bar');
+  bar.innerHTML = '';
+  const N = 20;
+  for (let i = 0; i < N; i++) {
+    const t = i / (N - 1);
+    const c = stressColor(t);
+    const hex = '#' + c.toString(16).padStart(6, '0');
+    const seg = document.createElement('div');
+    seg.className = 'legend-seg';
+    seg.style.background = hex;
+    bar.appendChild(seg);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  ANIMATION LOOP
+// ═══════════════════════════════════════════════════════
+let clock = new THREE.Clock();
+function animate() {
+  requestAnimationFrame(animate);
+  const t = clock.getElapsedTime();
+
+  // Pulse bolt light if over-utilized
+  const n = state.bolts.length;
+  const cap = boltCapacity() * n;
+  const overUtil = n > 0 && state.appliedForce > cap;
+  pointLight2.intensity = overUtil ? 0.4 + 0.3 * Math.sin(t * 4) : 0.4;
+
+  // Subtle rotation of bolt meshes (shimmer)
+  boltMeshes.forEach((m, i) => {
+    if (m) m.rotation.x = Math.sin(t * 0.5 + i) * 0.005;
+  });
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+// ═══════════════════════════════════════════════════════
+//  RESIZE
+// ═══════════════════════════════════════════════════════
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ═══════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════
+buildLegend();
+buildScene();
+updateResults();
+updateSuggestions();
+animate();
+
+setTimeout(() => {
+  const loading = document.getElementById('loading');
+  loading.style.opacity = '0';
+  setTimeout(() => loading.style.display = 'none', 500);
+}, 800);
+</script>
+</body>
+</html>
