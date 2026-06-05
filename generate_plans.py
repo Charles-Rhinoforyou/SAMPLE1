@@ -182,34 +182,35 @@ def floor_svg(floor_name, sections, vid, fid):
 
     sid = f"v{vid}-{fid}"
 
-    o = []
-    o.append(f'<svg id="{sid}" viewBox="0 0 {W} {H}" xmlns="http://www.w3.org/2000/svg" '
-             f'style="width:100%;display:block">')
-    o.append(f'<rect width="{W}" height="{H}" fill="#f8f8f6" rx="3"/>')
-
-    # Background plan image (hidden by default)
-    # Cropped region via SVG viewBox on nested <svg> / image transform
-    iw_frac = xr - xl    # fraction of image used for building width
+    # Image crop: scale so building portion fills (MX,MY)-(MX+SW*5,MY+SH)
+    iw_frac = xr - xl
     ih_frac = yb - yt
-    # We map image coords → SVG zone area (MX, MY) to (MX+SW*5, MY+SH)
-    # image x=xl → svg x=MX,  image x=xr → svg x=MX+SW*5
-    # transform: scale + translate on <image> tag
-    # image display width = W / iw_frac, then shift so xl aligns with MX
-    img_display_w = W / iw_frac
-    img_display_h = H / ih_frac
+    zone_w  = SW * 5
+    zone_h  = SH
+    img_display_w = zone_w / iw_frac
+    img_display_h = zone_h / ih_frac
     img_offset_x  = MX - xl * img_display_w
     img_offset_y  = MY - yt * img_display_h
 
-    o.append(f'<g id="{sid}-bg" style="display:none;clip-path:inset(0 0 0 0)">')
-    # clip to zone rectangle
-    o.append(f'<clipPath id="cp-{sid}"><rect x="{MX}" y="{MY}" width="{SW*5}" height="{SH}"/></clipPath>')
-    o.append(f'<image clip-path="url(#cp-{sid})" href="{img_path}" '
+    o = []
+    o.append(f'<svg id="{sid}" viewBox="0 0 {W} {H}" xmlns="http://www.w3.org/2000/svg" '
+             f'style="width:100%;display:block">')
+    # defs: clipPath MUST live here for cross-browser support
+    o.append(f'<defs>'
+             f'<clipPath id="cp-{sid}">'
+             f'<rect x="{MX}" y="{MY}" width="{zone_w}" height="{zone_h}"/>'
+             f'</clipPath>'
+             f'</defs>')
+    o.append(f'<rect width="{W}" height="{H}" fill="#f8f8f6" rx="3"/>')
+
+    # Background plan image — opacity=0 by default, raised by slider JS
+    o.append(f'<image id="{sid}-bg" clip-path="url(#cp-{sid})" '
+             f'href="{img_path}" '
              f'x="{img_offset_x:.1f}" y="{img_offset_y:.1f}" '
              f'width="{img_display_w:.1f}" height="{img_display_h:.1f}" '
-             f'preserveAspectRatio="none"/>')
-    o.append('</g>')
+             f'preserveAspectRatio="none" opacity="0"/>')
 
-    # Zone rectangles
+    # Zone rectangles (opacity controlled by slider)
     o.append(f'<g id="{sid}-zones">')
     for i, z in enumerate(sections):
         x = MX + i * SW
@@ -403,23 +404,33 @@ def area_table(v):
 
 # ─── JavaScript ──────────────────────────────────────────────────────────────
 JS = """
-function togglePlans(cb, vid) {
-  const on = cb.checked;
-  // toggle bg image layers
+function setPlanOpacity(slider, vid) {
+  const v   = parseFloat(slider.value);   // 0–100
+  const img = v / 100;                    // image opacity
+  const zone = Math.max(0.35, 1 - img * 0.65);  // zone fills fade as image appears
+
+  // SVG <image> elements: use setAttribute (works in all browsers for SVG attrs)
   document.querySelectorAll('[id^="v'+vid+'-"][id$="-bg"]').forEach(el => {
-    el.style.display = on ? 'block' : 'none';
+    el.setAttribute('opacity', img);
   });
-  // adjust zone opacity
+  // Zone rectangles inside this card
   document.querySelectorAll('#card-v'+vid+' .zrect').forEach(el => {
-    el.style.opacity = on ? '0.55' : '1';
+    el.setAttribute('opacity', zone);
   });
+  // Update numeric label
+  const lbl = document.getElementById('op-lbl-v'+vid);
+  if (lbl) lbl.textContent = Math.round(v) + '%';
 }
-function toggleAllPlans(cb) {
-  document.querySelectorAll('.plan-toggle').forEach(t => {
-    t.checked = cb.checked;
-    const vid = t.dataset.vid;
-    if (vid) togglePlans(t, vid);
+
+function setAllOpacity(slider) {
+  const v = slider.value;
+  document.querySelectorAll('.plan-slider').forEach(s => {
+    s.value = v;
+    const vid = s.dataset.vid;
+    if (vid) setPlanOpacity(s, parseInt(vid));
   });
+  const lbl = document.getElementById('op-lbl-global');
+  if (lbl) lbl.textContent = Math.round(v) + '%';
 }
 """
 
@@ -448,12 +459,12 @@ def build_html():
     </div>
   </div>
 
-  <div class="toggle-bar">
-    <label class="toggle-label">
-      <input type="checkbox" class="plan-toggle" data-vid="{v['n']}"
-             onchange="togglePlans(this, {v['n']})">
-      Afficher les plans de l'existant en arrière-plan
-    </label>
+  <div class="slider-bar">
+    <span class="slider-lbl">Plans existants</span>
+    <input type="range" class="plan-slider" data-vid="{v['n']}"
+           min="0" max="100" value="0" step="5"
+           oninput="setPlanOpacity(this, {v['n']})">
+    <span class="slider-pct" id="op-lbl-v{v['n']}">0%</span>
   </div>
 
   <div class="plans-row" id="v{v['n']}">
@@ -519,11 +530,21 @@ h1{{text-align:center;color:#2c3e50;font-size:1.7em;margin-bottom:4px;font-weigh
 .pro{{color:#2E8A5A;font-weight:500}}
 .con{{color:#a0522d;font-weight:500}}
 
-/* Toggle bar */
-.toggle-bar{{margin-bottom:10px}}
-.toggle-label{{cursor:pointer;font-size:.82em;color:#555;display:inline-flex;align-items:center;gap:6px;
-  background:#f4f4f0;padding:5px 12px;border-radius:20px;border:1px solid #ddd}}
-.toggle-label input{{cursor:pointer}}
+/* Slider bar */
+.slider-bar{{display:flex;align-items:center;gap:10px;margin-bottom:10px;
+  background:#f4f4f0;padding:6px 14px;border-radius:20px;border:1px solid #ddd;width:fit-content}}
+.slider-lbl{{font-size:.8em;color:#555;white-space:nowrap}}
+.plan-slider{{-webkit-appearance:none;appearance:none;width:180px;height:5px;border-radius:3px;
+  background:linear-gradient(to right,{CA} 0%,{CA} var(--val,0%),#ddd var(--val,0%),#ddd 100%);
+  outline:none;cursor:pointer}}
+.plan-slider::-webkit-slider-thumb{{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;
+  background:{CA_D};cursor:pointer;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.3)}}
+.plan-slider::-moz-range-thumb{{width:16px;height:16px;border-radius:50%;background:{CA_D};
+  cursor:pointer;border:2px solid white}}
+.slider-pct{{font-size:.8em;font-weight:700;color:{CA_D};min-width:32px}}
+/* Global toggle */
+.global-toggle{{text-align:center;margin-bottom:16px;font-size:.85em;
+  display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap}}
 
 /* Plans grid */
 .plans-row{{display:grid;grid-template-columns:repeat(4,1fr) 1.55fr;gap:6px;align-items:start;margin-bottom:14px}}
@@ -596,10 +617,10 @@ h1{{text-align:center;color:#2c3e50;font-size:1.7em;margin-bottom:4px;font-weigh
 <div class="nav">{"".join(f'<a href="#card-v{v["n"]}">V{v["n"]}</a>' for v in VARIANTS)}</div>
 
 <div class="global-toggle">
-  <label>
-    <input type="checkbox" onchange="toggleAllPlans(this)">
-    Afficher / masquer les plans de l'existant sur toutes les variantes
-  </label>
+  <span class="slider-lbl">Transparence plans existants — toutes les variantes</span>
+  <input type="range" class="plan-slider" min="0" max="100" value="0" step="5"
+         oninput="setAllOpacity(this)" style="width:220px;vertical-align:middle">
+  <span class="slider-pct" id="op-lbl-global">0%</span>
 </div>
 
 {"".join(cards)}
