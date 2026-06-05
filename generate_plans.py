@@ -172,79 +172,169 @@ def compute_areas(floors):
         floor_totals[fl] = ft
     return totals, floor_totals
 
+# ─── Corridor layout parameters per floor ────────────────────────────────────
+# R+1 & R+2 have a genuine central corridor. RDC has circulation but no linear
+# corridor. Combles are open-plan with no corridor.
+FLOOR_LAYOUT = {
+    # floor → (SH_north, SH_corr, SH_south)
+    'RDC':     (20, 6, 20),   # circulation path, thinner band
+    'R+1':     (21, 11, 21),  # clear central corridor full length
+    'R+2':     (21, 11, 21),
+    'Combles': (46, 0,  0),   # single open-plan row, no corridor
+}
+
+# Staircase position: (section_index_0based, label)
+# Esc 02 ≈ at section 1 left edge, Esc 01 ≈ at section 3 left edge
+ESC_POSITIONS = {
+    'R+1': [(1, 'Esc02'), (3, 'Esc01')],
+    'R+2': [(1, 'Esc02'), (3, 'Esc01')],
+    'RDC': [(1, 'Esc02'), (3, 'Esc01')],
+}
+
 # ─── SVG: schematic floor plan ────────────────────────────────────────────────
 def floor_svg(floor_name, sections, vid, fid):
-    SW, SH = 58, 52
-    MX, MY = 4, 8
-    W = MX * 2 + SW * 5
-    H = MY + SH + 22
+    SW       = 58
+    MX, MY   = 4, 8
+    sn, sc, ss = FLOOR_LAYOUT[floor_name]       # north/corr/south heights
+    SH_ZONE  = sn + sc + ss                      # total zone band height
+    W        = MX * 2 + SW * 5
+    H        = MY + SH_ZONE + 22                 # + label area
+
     img_path, xl, yt, xr, yb = PLAN_IMAGES[floor_name]
+    sid      = f"v{vid}-{fid}"
 
-    sid = f"v{vid}-{fid}"
-
-    # Image crop: scale so building portion fills (MX,MY)-(MX+SW*5,MY+SH)
-    iw_frac = xr - xl
-    ih_frac = yb - yt
-    zone_w  = SW * 5
-    zone_h  = SH
-    img_display_w = zone_w / iw_frac
-    img_display_h = zone_h / ih_frac
+    # Image crop: scale so building portion fills the zone band
+    zone_w        = SW * 5
+    img_display_w = zone_w / (xr - xl)
+    img_display_h = SH_ZONE / (yb - yt)
     img_offset_x  = MX - xl * img_display_w
     img_offset_y  = MY - yt * img_display_h
 
     o = []
-    o.append(f'<svg id="{sid}" viewBox="0 0 {W} {H}" xmlns="http://www.w3.org/2000/svg" '
-             f'style="width:100%;display:block">')
-    # defs: clipPath MUST live here for cross-browser support
-    o.append(f'<defs>'
-             f'<clipPath id="cp-{sid}">'
-             f'<rect x="{MX}" y="{MY}" width="{zone_w}" height="{zone_h}"/>'
-             f'</clipPath>'
-             f'</defs>')
+    o.append(f'<svg id="{sid}" viewBox="0 0 {W} {H}" '
+             f'xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block">')
+    o.append(f'<defs><clipPath id="cp-{sid}">'
+             f'<rect x="{MX}" y="{MY}" width="{zone_w}" height="{SH_ZONE}"/>'
+             f'</clipPath></defs>')
     o.append(f'<rect width="{W}" height="{H}" fill="#f8f8f6" rx="3"/>')
 
-    # Background plan image — opacity=0 by default, raised by slider JS
+    # Background plan image (opacity=0 by default, JS slider controls it)
     o.append(f'<image id="{sid}-bg" clip-path="url(#cp-{sid})" '
-             f'href="{img_path}" '
-             f'x="{img_offset_x:.1f}" y="{img_offset_y:.1f}" '
+             f'href="{img_path}" x="{img_offset_x:.1f}" y="{img_offset_y:.1f}" '
              f'width="{img_display_w:.1f}" height="{img_display_h:.1f}" '
              f'preserveAspectRatio="none" opacity="0"/>')
 
-    # Zone rectangles (opacity controlled by slider)
+    # ── Zone room rectangles ──────────────────────────────────────────────────
     o.append(f'<g id="{sid}-zones">')
+    rooms = ROOMS.get(floor_name, [['', '']]*5)
+    areas = SECTION_AREAS[floor_name]
+
     for i, z in enumerate(sections):
         x = MX + i * SW
-        y = MY
         c = ZONE_COLOR[z]
         d = ZONE_DARK[z]
-        area = SECTION_AREAS[floor_name][i]
-        o.append(f'<rect class="zrect" x="{x+1}" y="{y+1}" width="{SW-2}" height="{SH-2}" '
-                 f'fill="{c}" stroke="{d}" stroke-width="1.5" rx="2" opacity="1"/>')
-        room = ROOMS.get(floor_name, [['','']]*5)[i]
-        for li, txt in enumerate(room):
-            if txt:
-                o.append(f'<text x="{x+SW//2}" y="{y+12+li*11}" text-anchor="middle" '
-                         f'font-size="7" font-family="sans-serif" fill="rgba(255,255,255,.92)">{txt}</text>')
-        # zone label + area
-        o.append(f'<text x="{x+SW//2}" y="{y+SH-13}" text-anchor="middle" '
-                 f'font-size="7.5" font-weight="bold" font-family="sans-serif" fill="white" opacity=".9">'
-                 f'{ZONE_LABEL[z]}</text>')
-        o.append(f'<text x="{x+SW//2}" y="{y+SH-3}" text-anchor="middle" '
-                 f'font-size="8" font-family="sans-serif" fill="rgba(255,255,255,.85)">'
-                 f'{area} m²</text>')
+        area = areas[i]
+        lbl_n = rooms[i][0] if rooms[i] else ''
+        lbl_s = rooms[i][1] if len(rooms[i]) > 1 else ''
+
+        if sc > 0:
+            # ── North row ────────────────────────────────────────────────────
+            yn = MY
+            o.append(f'<rect class="zrect" x="{x+1}" y="{yn+1}" width="{SW-2}" height="{sn-1}" '
+                     f'fill="{c}" stroke="{d}" stroke-width="1.5" opacity="1" '
+                     f'style="rx:2px 2px 0 0"/>')
+            if lbl_n:
+                o.append(f'<text x="{x+SW//2}" y="{yn+sn//2+3}" text-anchor="middle" '
+                         f'font-size="6.5" font-family="sans-serif" fill="rgba(255,255,255,.92)">{lbl_n}</text>')
+
+            # ── South row ────────────────────────────────────────────────────
+            ys = MY + sn + sc
+            o.append(f'<rect class="zrect" x="{x+1}" y="{ys}" width="{SW-2}" height="{ss-1}" '
+                     f'fill="{c}" stroke="{d}" stroke-width="1.5" opacity="1" '
+                     f'style="rx:0 0 2px 2px"/>')
+            if lbl_s:
+                o.append(f'<text x="{x+SW//2}" y="{ys+ss//2+3}" text-anchor="middle" '
+                         f'font-size="6.5" font-family="sans-serif" fill="rgba(255,255,255,.92)">{lbl_s}</text>')
+
+            # area label (small, in south row bottom)
+            o.append(f'<text x="{x+SW//2}" y="{ys+ss-2}" text-anchor="middle" '
+                     f'font-size="6" font-family="sans-serif" fill="rgba(255,255,255,.7)">{area}m²</text>')
+        else:
+            # Single row (Combles: no corridor)
+            o.append(f'<rect class="zrect" x="{x+1}" y="{MY+1}" width="{SW-2}" height="{sn-2}" '
+                     f'fill="{c}" stroke="{d}" stroke-width="1.5" rx="2" opacity="1"/>')
+            if lbl_n:
+                o.append(f'<text x="{x+SW//2}" y="{MY+sn//2}" text-anchor="middle" '
+                         f'font-size="6.5" font-family="sans-serif" fill="rgba(255,255,255,.9)">{lbl_n}</text>')
+            if lbl_s:
+                o.append(f'<text x="{x+SW//2}" y="{MY+sn//2+10}" text-anchor="middle" '
+                         f'font-size="6" font-family="sans-serif" fill="rgba(255,255,255,.8)">{lbl_s}</text>')
+            o.append(f'<text x="{x+SW//2}" y="{MY+sn-4}" text-anchor="middle" '
+                     f'font-size="6.5" font-weight="bold" font-family="sans-serif" '
+                     f'fill="rgba(255,255,255,.85)">{ZONE_LABEL[z]} · {area}m²</text>')
+
     o.append('</g>')
 
-    # Building outline + dividers
-    total_w = SW * 5
-    o.append(f'<rect x="{MX}" y="{MY}" width="{total_w}" height="{SH}" '
+    # ── Corridor band (R+1 and R+2 — and thin band for RDC) ──────────────────
+    if sc > 0:
+        yc = MY + sn
+        # Corridor fill (neutral, unzoned — it serves all zones)
+        o.append(f'<rect x="{MX}" y="{yc}" width="{zone_w}" height="{sc}" '
+                 f'fill="#E5E0D8" stroke="#BBB5AD" stroke-width="0.5"/>')
+
+        # "COULOIR" label (centered, italic)
+        if sc >= 9:
+            o.append(f'<text x="{MX + zone_w//2}" y="{yc + sc//2 + 3}" '
+                     f'text-anchor="middle" font-size="6.5" font-style="italic" '
+                     f'font-family="sans-serif" fill="#888">couloir</text>')
+
+        # Staircase markers in corridor
+        for esc_sec, esc_lbl in ESC_POSITIONS.get(floor_name, []):
+            ex = MX + esc_sec * SW - 10
+            o.append(f'<rect x="{ex}" y="{yc+1}" width="20" height="{sc-2}" '
+                     f'fill="#C8B89A" stroke="#8A7A60" stroke-width="1" rx="1"/>')
+            o.append(f'<text x="{ex+10}" y="{yc + sc//2 + 3}" text-anchor="middle" '
+                     f'font-size="5.5" font-weight="bold" font-family="sans-serif" fill="#555">{esc_lbl}</text>')
+
+        # Door symbols at zone-boundary crossings in the corridor
+        prev = sections[0]
+        for i in range(1, 5):
+            cur = sections[i]
+            if cur != prev:
+                dx = MX + i * SW
+                # Dashed partition line through full height
+                o.append(f'<line x1="{dx}" y1="{MY}" x2="{dx}" y2="{MY+SH_ZONE}" '
+                         f'stroke="#333" stroke-width="2.5" stroke-dasharray="3,2" opacity=".7"/>')
+                # Door symbol in corridor: small brown rectangle
+                o.append(f'<rect x="{dx-4}" y="{yc+2}" width="8" height="{sc-4}" '
+                         f'fill="#7A5040" stroke="#4A2810" stroke-width="1" rx="1"/>')
+                # "Porte" label
+                o.append(f'<text x="{dx}" y="{yc+sc+8}" text-anchor="middle" '
+                         f'font-size="5" font-family="sans-serif" fill="#7A5040">▮ porte</text>')
+            prev = cur
+
+    # ── Zone labels below building (one per section) ──────────────────────────
+    for i, z in enumerate(sections):
+        x = MX + i * SW
+        c = ZONE_COLOR[z]
+        d = ZONE_DARK[z]
+        o.append(f'<rect x="{x+2}" y="{MY+SH_ZONE+2}" width="{SW-4}" height="8" '
+                 f'fill="{c}" opacity=".85" rx="1"/>')
+        o.append(f'<text x="{x+SW//2}" y="{MY+SH_ZONE+9}" text-anchor="middle" '
+                 f'font-size="6" font-weight="bold" font-family="sans-serif" fill="white">'
+                 f'Zone {z}</text>')
+
+    # ── Building outline + vertical section dividers ──────────────────────────
+    o.append(f'<rect x="{MX}" y="{MY}" width="{zone_w}" height="{SH_ZONE}" '
              f'fill="none" stroke="#444" stroke-width="2" rx="2"/>')
     for i in range(1, 5):
         lx = MX + i * SW
-        o.append(f'<line x1="{lx}" y1="{MY}" x2="{lx}" y2="{MY+SH}" stroke="#555" stroke-width="0.8"/>')
+        o.append(f'<line x1="{lx}" y1="{MY}" x2="{lx}" y2="{MY+SH_ZONE}" '
+                 f'stroke="#555" stroke-width="0.6" opacity=".5"/>')
 
-    # Floor label
-    label_y = MY + SH + 15
-    o.append(f'<text x="{W//2}" y="{label_y}" text-anchor="middle" font-size="11" '
+    # ── Floor label ───────────────────────────────────────────────────────────
+    ly = MY + SH_ZONE + 19
+    o.append(f'<text x="{W//2}" y="{ly}" text-anchor="middle" font-size="10" '
              f'font-weight="bold" font-family="sans-serif" fill="#333">{floor_name}</text>')
 
     o.append('</svg>')
@@ -353,6 +443,56 @@ def persp_svg(floors):
     return ''.join(o)
 
 
+# ─── Corridor analysis ───────────────────────────────────────────────────────
+def corridor_analysis(floors):
+    """
+    Verify that the central corridor (present at R+1 and R+2) is architecturally
+    respected when a zone boundary crosses it.
+
+    Rules:
+    - The corridor runs the full length of R+1 and R+2.
+    - Esc02 is at boundary between sections 1 and 2 (left staircase).
+    - Esc01 is at boundary between sections 3 and 4 (right staircase).
+    - When a zone split happens within [sections 2-5], each zone needs an Esc:
+        * sections 1-2  get Esc02
+        * sections 3-5  get Esc01 (and the spiral at far right)
+    - A door at the corridor crossing point separates the zones — this is standard
+      practice and does NOT disrupt the corridor.
+    """
+    notes = []
+    for fl in ['R+1', 'R+2']:
+        secs = floors[fl]
+        # Detect zone-change positions
+        changes = [i for i in range(1, 5) if secs[i] != secs[i-1]]
+        if not changes:
+            notes.append(f"<li><strong>{fl}</strong> : couloir non divisé — accès unifié, pas de porte nécessaire.</li>")
+            continue
+
+        # Check staircase access per zone
+        zones_present = sorted(set(secs), key=lambda z: secs.index(z))
+        zone_secs = {z: [i for i, s in enumerate(secs) if s == z] for z in zones_present}
+        zone_esc  = {}
+        for z, idxs in zone_secs.items():
+            esc = []
+            if any(i <= 1 for i in idxs):   esc.append("Esc02 (gauche)")
+            if any(i >= 2 for i in idxs):   esc.append("Esc01 (centre)")
+            if any(i == 4 for i in idxs):   esc.append("escalier hélicoïdal (droite)")
+            zone_esc[z] = esc if esc else ["⚠ aucun escalier direct"]
+
+        for z, escs in zone_esc.items():
+            label = ZONE_LABEL[z]
+            notes.append(f"<li><strong>{fl} — Zone {z} ({label})</strong> : "
+                         f"sections {[i+1 for i in zone_secs[z]]} → accès couloir via {', '.join(escs)}.</li>")
+
+        door_positions = ", ".join(f"entre sections {i} et {i+1}" for i in changes)
+        notes.append(f"<li class='corr-door'>Porte(s) de séparation dans le couloir du {fl} : {door_positions}.</li>")
+
+    return f"""<div class="corr-box">
+  <strong>Couloir central — analyse</strong>
+  <ul class="corr-list">{"".join(notes)}</ul>
+</div>"""
+
+
 # ─── Area summary table ───────────────────────────────────────────────────────
 def area_table(v):
     totals, floor_totals = compute_areas(v['floors'])
@@ -445,6 +585,7 @@ def build_html():
         atable = area_table(v)
         totals, _ = compute_areas(v['floors'])
 
+        corr = corridor_analysis(v['floors'])
         card = f"""
 <div class="card" id="card-v{v['n']}">
   <div class="card-header">
@@ -475,6 +616,7 @@ def build_html():
     <div class="plan-cell persp-cell"><div class="plan-wrap">{psvg}</div></div>
   </div>
 
+  {corr}
   {atable}
 </div>
 """
@@ -551,6 +693,13 @@ h1{{text-align:center;color:#2c3e50;font-size:1.7em;margin-bottom:4px;font-weigh
 .plan-cell{{min-width:0}}
 .plan-wrap{{border:1px solid #ddd;border-radius:6px;overflow:hidden;background:#fafaf8}}
 
+/* Corridor analysis */
+.corr-box{{background:#F5F3EE;border-left:3px solid #8A7A60;border-radius:0 8px 8px 0;
+  padding:8px 12px;margin-bottom:10px;font-size:.8em}}
+.corr-box strong{{color:#5C4A30;display:block;margin-bottom:4px}}
+.corr-list{{list-style:none;padding:0;display:flex;flex-wrap:wrap;gap:4px 16px}}
+.corr-list li{{color:#444}}
+.corr-door{{color:#7A5040;font-style:italic}}
 /* Area table */
 .area-wrap{{margin-top:4px}}
 .area-table{{width:100%;border-collapse:collapse;font-size:.8em;margin-bottom:8px}}
