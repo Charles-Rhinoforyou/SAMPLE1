@@ -14,15 +14,17 @@ CC   = "#52B788"   # Vert    – Appartement couple gérant
 CA_D = "#C47A3A"
 CB_D = "#2E5E7E"
 CC_D = "#2E8A5A"
+CD   = "#8B72CF"   # Violet  – Hôtellerie réduite (combles)
+CD_D = "#6A50A8"
 ROOF  = "#4A4A5A"
 ROOF2 = "#3A3A4A"
 WIN   = "#A8D4E6"
 GND   = "#C4D4A0"
 WALL  = "#E8E4DC"
 
-ZONE_COLOR = {'A': CA,   'B': CB,   'C': CC}
-ZONE_DARK  = {'A': CA_D, 'B': CB_D, 'C': CC_D}
-ZONE_LABEL = {'A': 'Communs', 'B': 'Héberg.', 'C': 'Apt.'}
+ZONE_COLOR = {'A': CA,   'B': CB,   'C': CC,   'D': CD}
+ZONE_DARK  = {'A': CA_D, 'B': CB_D, 'C': CC_D, 'D': CD_D}
+ZONE_LABEL = {'A': 'Communs', 'B': 'Héberg.', 'C': 'Apt.', 'D': 'Hôtellerie'}
 
 # ─── Approximate usable areas per floor section (m²) ─────────────────────────
 # Based on Esquisse N°3 room schedules — 5 horizontal sections left→right
@@ -45,15 +47,13 @@ ROOMS = {
                 ['Ch13','Ch10'],        ['Ch03','Ch09'],           ['Ch04-05','Ch06-08']],
     'R+2':     [['Ch25','Ch24'],        ['Ch26','Ch23'],
                 ['Ch27','Ch22'],        ['Ch14','Ch19'],           ['Ch15-16','Ch17-18']],
-    # Combles: all Zone A — named common rooms under the mansard roof
-    # Salle02 (120m²) left: Salle polyvalente | Salle02 right: Sport / Bien-être
-    # Esc01 + Ch28 (22m²) center: staircase + Atelier
-    # Combles01 (106m²): Chapelle/Oratoire left | Bibliothèque right
-    'Combles': [['Salle polyvl.', ''],
-                ['Sport / B-ê',   ''],
-                ['Esc.01',        'Atelier'],
-                ['Chapelle',      'Oratoire'],
-                ['Bibliothèque',  '']],
+    # Combles: Zone A (MSJ) or Zone D (hôtellerie) — toggled via JS
+    # 3rd element = hotel label (used when JS switches to hôtellerie mode)
+    'Combles': [['Salle polyvl.',  '',         'Salon hôtel'],
+                ['Sport / B-ê',    '',         'Salle commune'],
+                ['Esc.01',         'Atelier',   'Esc. + Suite'],
+                ['Chapelle',       'Oratoire',  'Ch. hôtes'],
+                ['Bibliothèque',   '',         'Ch. hôtes']],
 }
 
 FLOOR_H    = {'Combles': 22, 'R+2': 38, 'R+1': 38, 'RDC': 32}  # px in perspective
@@ -173,10 +173,10 @@ VARIANTS = [
 
 # ─── Surface calculator ───────────────────────────────────────────────────────
 def compute_areas(floors):
-    totals = {'A': 0, 'B': 0, 'C': 0}
+    totals = {'A': 0, 'B': 0, 'C': 0, 'D': 0}
     floor_totals = {}
     for fl, secs in floors.items():
-        ft = {'A': 0, 'B': 0, 'C': 0}
+        ft = {'A': 0, 'B': 0, 'C': 0, 'D': 0}
         areas = SECTION_AREAS[fl]
         for i, z in enumerate(secs):
             totals[z] += areas[i]
@@ -272,18 +272,21 @@ def floor_svg(floor_name, sections, vid, fid):
             o.append(f'<text x="{x+SW//2}" y="{ys+ss-2}" text-anchor="middle" '
                      f'font-size="6" font-family="sans-serif" fill="rgba(255,255,255,.7)">{area}m²</text>')
         else:
-            # Single row (Combles: no corridor)
-            o.append(f'<rect class="zrect" x="{x+1}" y="{MY+1}" width="{SW-2}" height="{sn-2}" '
-                     f'fill="{c}" stroke="{d}" stroke-width="1.5" rx="2" opacity="1"/>')
+            # Single row (Combles: no corridor) — supports Zone D toggle via JS
+            hotel_lbl = rooms[i][2] if len(rooms[i]) > 2 else lbl_n
+            o.append(f'<rect class="zrect combles-zrect" x="{x+1}" y="{MY+1}" width="{SW-2}" height="{sn-2}" '
+                     f'fill="{c}" stroke="{d}" stroke-width="1.5" rx="2" opacity="1" data-sec="{i}"/>')
             if lbl_n:
                 o.append(f'<text x="{x+SW//2}" y="{MY+sn//2}" text-anchor="middle" '
-                         f'font-size="6.5" font-family="sans-serif" fill="rgba(255,255,255,.9)">{lbl_n}</text>')
+                         f'font-size="6.5" font-family="sans-serif" fill="rgba(255,255,255,.9)" '
+                         f'class="combles-room-lbl" data-msj="{lbl_n}" data-hotel="{hotel_lbl}" data-sec="{i}">{lbl_n}</text>')
             if lbl_s:
                 o.append(f'<text x="{x+SW//2}" y="{MY+sn//2+10}" text-anchor="middle" '
                          f'font-size="6" font-family="sans-serif" fill="rgba(255,255,255,.8)">{lbl_s}</text>')
             o.append(f'<text x="{x+SW//2}" y="{MY+sn-4}" text-anchor="middle" '
                      f'font-size="6.5" font-weight="bold" font-family="sans-serif" '
-                     f'fill="rgba(255,255,255,.85)">{ZONE_LABEL[z]} · {area}m²</text>')
+                     f'fill="rgba(255,255,255,.85)" class="combles-zone-lbl" data-sec="{i}">'
+                     f'{ZONE_LABEL[z]} · {area}m²</text>')
 
     o.append('</g>')
 
@@ -330,10 +333,14 @@ def floor_svg(floor_name, sections, vid, fid):
         x = MX + i * SW
         c = ZONE_COLOR[z]
         d = ZONE_DARK[z]
-        o.append(f'<rect x="{x+2}" y="{MY+SH_ZONE+2}" width="{SW-4}" height="8" '
-                 f'fill="{c}" opacity=".85" rx="1"/>')
-        o.append(f'<text x="{x+SW//2}" y="{MY+SH_ZONE+9}" text-anchor="middle" '
-                 f'font-size="6" font-weight="bold" font-family="sans-serif" fill="white">'
+        is_cmb = floor_name == 'Combles'
+        badge_cls = 'combles-badge' if is_cmb else ''
+        tag_cls   = 'combles-zone-tag' if is_cmb else ''
+        sec_attr  = f' data-sec="{i}"' if is_cmb else ''
+        o.append(f'<rect class="{badge_cls}" x="{x+2}" y="{MY+SH_ZONE+2}" width="{SW-4}" height="8" '
+                 f'fill="{c}" opacity=".85" rx="1"{sec_attr}/>')
+        o.append(f'<text class="{tag_cls}" x="{x+SW//2}" y="{MY+SH_ZONE+9}" text-anchor="middle" '
+                 f'font-size="6" font-weight="bold" font-family="sans-serif" fill="white"{sec_attr}>'
                  f'Zone {z}</text>')
 
     # ── Building outline + vertical section dividers ──────────────────────────
@@ -382,7 +389,10 @@ def persp_svg(floors):
             y = y_cur - fh
             c = ZONE_COLOR[z]
             d = ZONE_DARK[z]
-            o.append(f'<rect x="{x}" y="{y}" width="{sw}" height="{fh}" fill="{c}" stroke="{d}" stroke-width=".4"/>')
+            if fl == 'Combles':
+                o.append(f'<rect class="cpersp-rect" data-sec="{si}" x="{x}" y="{y}" width="{sw}" height="{fh}" fill="{c}" stroke="{d}" stroke-width=".4"/>')
+            else:
+                o.append(f'<rect x="{x}" y="{y}" width="{sw}" height="{fh}" fill="{c}" stroke="{d}" stroke-width=".4"/>')
             if fl == 'Combles':
                 wx, wy, ww, wh = x+sw//3, y+4, sw//4, fh-7
             else:
@@ -556,24 +566,20 @@ def area_table(v):
 
 # ─── JavaScript ──────────────────────────────────────────────────────────────
 JS = """
+// ── Plan opacity slider ────────────────────────────────────────────────────
 function setPlanOpacity(slider, vid) {
-  const v   = parseFloat(slider.value);   // 0–100
-  const img = v / 100;                    // image opacity
-  const zone = Math.max(0.35, 1 - img * 0.65);  // zone fills fade as image appears
-
-  // SVG <image> elements: use setAttribute (works in all browsers for SVG attrs)
+  const v    = parseFloat(slider.value);
+  const img  = v / 100;
+  const zone = Math.max(0.35, 1 - img * 0.65);
   document.querySelectorAll('[id^="v'+vid+'-"][id$="-bg"]').forEach(el => {
     el.setAttribute('opacity', img);
   });
-  // Zone rectangles inside this card
   document.querySelectorAll('#card-v'+vid+' .zrect').forEach(el => {
     el.setAttribute('opacity', zone);
   });
-  // Update numeric label
   const lbl = document.getElementById('op-lbl-v'+vid);
   if (lbl) lbl.textContent = Math.round(v) + '%';
 }
-
 function setAllOpacity(slider) {
   const v = slider.value;
   document.querySelectorAll('.plan-slider').forEach(s => {
@@ -583,6 +589,72 @@ function setAllOpacity(slider) {
   });
   const lbl = document.getElementById('op-lbl-global');
   if (lbl) lbl.textContent = Math.round(v) + '%';
+}
+
+// ── Combles zone toggle (MSJ / Hôtellerie / Moitié-Moitié) ────────────────
+const CA_F = '#F4A261', CA_S = '#C47A3A';   // Zone A (MSJ communs)
+const CD_F = '#8B72CF', CD_S = '#6A50A8';   // Zone D (Hôtellerie réduite)
+
+function getComblesZone(sec, mode) {
+  if (mode === 'msj')   return 'A';
+  if (mode === 'hotel') return 'D';
+  // split: sections 0-2 (Salle 02 + staircase) = MSJ, sections 3-4 (Combles01) = Hotel
+  return sec <= 2 ? 'A' : 'D';
+}
+
+function setComblesMode(mode) {
+  // Update fill/stroke of combles zone rects
+  document.querySelectorAll('.combles-zrect').forEach(el => {
+    const sec  = parseInt(el.dataset.sec || 0);
+    const zone = getComblesZone(sec, mode);
+    el.setAttribute('fill',   zone === 'A' ? CA_F : CD_F);
+    el.setAttribute('stroke', zone === 'A' ? CA_S : CD_S);
+  });
+  // Update badge rectangles below sections
+  document.querySelectorAll('.combles-badge').forEach(el => {
+    const sec  = parseInt(el.dataset.sec || 0);
+    const zone = getComblesZone(sec, mode);
+    el.setAttribute('fill', zone === 'A' ? CA_F : CD_F);
+  });
+  // Update zone-tag text (Zone A / Zone D)
+  document.querySelectorAll('.combles-zone-tag').forEach(el => {
+    const sec  = parseInt(el.dataset.sec || 0);
+    el.textContent = 'Zone ' + getComblesZone(sec, mode);
+  });
+  // Update zone-label text inside rects (Communs / Hôtellerie)
+  document.querySelectorAll('.combles-zone-lbl').forEach(el => {
+    const sec   = parseInt(el.dataset.sec || 0);
+    const zone  = getComblesZone(sec, mode);
+    const area  = el.textContent.replace(/.*·\s*/, '');   // keep "XXm²" part
+    const lbl   = zone === 'A' ? 'Communs' : 'Hôtellerie';
+    el.textContent = lbl + ' · ' + area;
+  });
+  // Update room name labels
+  document.querySelectorAll('.combles-room-lbl').forEach(el => {
+    const sec  = parseInt(el.dataset.sec || 0);
+    const zone = getComblesZone(sec, mode);
+    el.textContent = zone === 'A' ? el.dataset.msj : el.dataset.hotel;
+  });
+  // Show/hide info panels in the combles-box
+  ['msj', 'hotel', 'split'].forEach(m => {
+    const el = document.getElementById('cinfo-' + m);
+    if (el) el.style.display = m === mode ? '' : 'none';
+  });
+  // Show Zone D in legend only when relevant
+  const legD = document.getElementById('leg-d');
+  if (legD) legD.style.display = mode === 'msj' ? 'none' : '';
+  // Update perspective: combles sections — update fill of last 4 rows
+  updatePerspCombles(mode);
+}
+
+function updatePerspCombles(mode) {
+  // Perspective SVGs have section rects tagged .cpersp-rect with data-sec
+  document.querySelectorAll('.cpersp-rect').forEach(el => {
+    const sec  = parseInt(el.dataset.sec || 0);
+    const zone = getComblesZone(sec, mode);
+    el.setAttribute('fill', zone === 'A' ? CA_F : CD_F);
+    el.setAttribute('stroke', zone === 'A' ? CA_S : CD_S);
+  });
 }
 """
 
@@ -705,6 +777,20 @@ h1{{text-align:center;color:#2c3e50;font-size:1.7em;margin-bottom:4px;font-weigh
 .plan-cell{{min-width:0}}
 .plan-wrap{{border:1px solid #ddd;border-radius:6px;overflow:hidden;background:#fafaf8}}
 
+/* Combles mode toggle */
+.mode-toggle{{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;
+  background:#f9f6f2;border:1px solid #e8e0d4;border-radius:10px;padding:8px 14px}}
+.mode-lbl{{font-size:.83em;font-weight:700;color:#555;white-space:nowrap}}
+.mode-opt{{display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none}}
+.mode-opt input{{cursor:pointer;accent-color:{CA_D}}}
+.mode-badge{{font-size:.78em;font-weight:700;padding:4px 10px;border-radius:14px;border:1.5px solid transparent;transition:all .2s}}
+.mode-badge--a{{background:#FEE9D4;color:#7a3800;border-color:{CA}}}
+.mode-badge--d{{background:#EDE8F8;color:#4a2a8a;border-color:{CD}}}
+.mode-badge--split{{background:linear-gradient(90deg,#FEE9D4 50%,#EDE8F8 50%);color:#444;border-color:#bbb}}
+.mode-opt input:checked + .mode-badge--a{{background:{CA};color:white}}
+.mode-opt input:checked + .mode-badge--d{{background:{CD};color:white}}
+.mode-opt input:checked + .mode-badge--split{{background:linear-gradient(90deg,{CA} 50%,{CD} 50%);color:white}}
+
 /* Combles info box */
 .combles-box{{background:linear-gradient(135deg,#FFF4E8,#FFF8F2);border:2px solid {CA};
   border-radius:12px;padding:16px 20px;margin:0 auto 20px;max-width:900px}}
@@ -784,18 +870,42 @@ h1{{text-align:center;color:#2c3e50;font-size:1.7em;margin-bottom:4px;font-weigh
   <div class="leg"><div class="leg-box" style="background:{CA}"></div>Zone A — Espaces communs MSJ</div>
   <div class="leg"><div class="leg-box" style="background:{CB}"></div>Zone B — Hébergement résidents</div>
   <div class="leg"><div class="leg-box" style="background:{CC}"></div>Zone C — Appartement couple gérant</div>
+  <div class="leg" id="leg-d" style="display:none"><div class="leg-box" style="background:{CD}"></div>Zone D — Hôtellerie réduite</div>
 </div>
 
 <div class="combles-box">
-  <div class="combles-title">Dernier étage — Combles : 226 m² de salles communes sous le toit mansardé</div>
+  <div class="combles-title">Dernier étage — Combles : 250 m² sous le toit mansardé</div>
+  <div class="mode-toggle">
+    <span class="mode-lbl">Affecter les combles à :</span>
+    <label class="mode-opt mode-opt--msj">
+      <input type="radio" name="comblesMode" value="msj" checked onchange="setComblesMode('msj')">
+      <span class="mode-badge mode-badge--a">MSJ — Espaces communs</span>
+    </label>
+    <label class="mode-opt mode-opt--hotel">
+      <input type="radio" name="comblesMode" value="hotel" onchange="setComblesMode('hotel')">
+      <span class="mode-badge mode-badge--d">Hôtellerie réduite</span>
+    </label>
+    <label class="mode-opt mode-opt--split">
+      <input type="radio" name="comblesMode" value="split" onchange="setComblesMode('split')">
+      <span class="mode-badge mode-badge--split">Moitié-Moitié</span>
+    </label>
+  </div>
   <div class="combles-grid">
     <div class="combles-room"><span class="combles-icon">🏃</span><strong>Salle polyvalente</strong><br>Salle 02 · 60 m²<br>Réunions, événements, prière collective</div>
     <div class="combles-room"><span class="combles-icon">⚽</span><strong>Salle sport / bien-être</strong><br>Salle 02 · 62 m²<br>Yoga, activité physique, détente</div>
-    <div class="combles-room"><span class="combles-icon">🔧</span><strong>Atelier</strong><br>Ch28 · 16 m²<br>Mosaïque, bois, sculpture (cahier des charges VSJ)</div>
+    <div class="combles-room"><span class="combles-icon">🔧</span><strong>Atelier / Esc.</strong><br>Ch28 · 22 m²<br>Mosaïque, bois, sculpture · Accès étages</div>
     <div class="combles-room"><span class="combles-icon">⛪</span><strong>Chapelle / Oratoire</strong><br>Combles 01 · 52 m²<br>Présence réelle, ≥ 15 personnes</div>
     <div class="combles-room"><span class="combles-icon">📚</span><strong>Bibliothèque</strong><br>Combles 01 · 54 m²<br>Lecture, formation, espace calme</div>
   </div>
-  <p class="combles-note">Dans toutes les variantes ci-dessous, les combles sont réservés à la Zone A (espaces communs). L'appartement du couple est situé à un niveau inférieur.</p>
+  <div id="cinfo-msj">
+    <p class="combles-note">Mode actuel : <strong>100 % Maison Saint Joseph</strong> — les 250 m² de combles sont réservés aux espaces communs MSJ (Zone A). L'appartement du couple est situé à un niveau inférieur.</p>
+  </div>
+  <div id="cinfo-hotel" style="display:none">
+    <p class="combles-note">Mode actuel : <strong>100 % Hôtellerie réduite</strong> — les 250 m² de combles sont attribués à l'Hôtellerie de l'abbaye (Zone D) : salon, salle commune, suite, chambres d'hôtes. L'abbaye conserve une activité indépendante au dernier étage.</p>
+  </div>
+  <div id="cinfo-split" style="display:none">
+    <p class="combles-note">Mode actuel : <strong>Moitié-Moitié</strong> — la Salle 02 (sections 1-3, 144 m²) reste en espaces communs MSJ (Zone A) ; les Combles 01 (sections 4-5, 106 m²) sont réservés à l'Hôtellerie réduite de l'abbaye (Zone D).</p>
+  </div>
 </div>
 
 <div class="nav">{"".join(f'<a href="#card-v{v["n"]}">V{v["n"]}</a>' for v in VARIANTS)}</div>
