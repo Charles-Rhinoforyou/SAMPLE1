@@ -45,8 +45,15 @@ ROOMS = {
                 ['Ch13','Ch10'],        ['Ch03','Ch09'],           ['Ch04-05','Ch06-08']],
     'R+2':     [['Ch25','Ch24'],        ['Ch26','Ch23'],
                 ['Ch27','Ch22'],        ['Ch14','Ch19'],           ['Ch15-16','Ch17-18']],
-    'Combles': [['Salle02',''],         ['Salle02',''],
-                ['Esc.01','Ch28'],      ['Combles01',''],          ['Combles01','']],
+    # Combles: all Zone A — named common rooms under the mansard roof
+    # Salle02 (120m²) left: Salle polyvalente | Salle02 right: Sport / Bien-être
+    # Esc01 + Ch28 (22m²) center: staircase + Atelier
+    # Combles01 (106m²): Chapelle/Oratoire left | Bibliothèque right
+    'Combles': [['Salle polyvl.', ''],
+                ['Sport / B-ê',   ''],
+                ['Esc.01',        'Atelier'],
+                ['Chapelle',      'Oratoire'],
+                ['Bibliothèque',  '']],
 }
 
 FLOOR_H    = {'Combles': 22, 'R+2': 38, 'R+1': 38, 'RDC': 32}  # px in perspective
@@ -93,24 +100,26 @@ VARIANTS = [
          floors={'RDC':['A','A','A','C','C'], 'R+1':['B','B','B','C','C'],
                  'R+2':['B','B','B','B','B'], 'Combles':['A','A','A','A','A']}),
 
-    dict(n=4, name="Duplex Haut — R+2 + Combles Droite",
-         desc=("L'appartement est en hauteur : aile droite du R+2 et combles droits (sous les lucarnes). "
-               "Accès par l'escalier droit ou ascenseur prévu. Intimité maximale avec vue panoramique. "
-               "R+1 et R+2 gauche entièrement dédiés à l'hébergement (12 chambres)."),
-         pros="Intimité maximale · Vue panoramique · Beau duplex sous les toits",
-         cons="Couple plus éloigné des résidents · Combles à aménager",
+    dict(n=4, name="Appartement R+2 Droit + Combles Ateliers",
+         desc=("L'appartement occupe l'aile droite du R+2 (≈ 130 m²). "
+               "Les combles sont entièrement libérés en espaces communs : "
+               "salle polyvalente (Salle 02 · 120 m²), salle sport/bien-être, "
+               "chapelle/oratoire (Combles 01 · 106 m²) et bibliothèque. "
+               "R+1 entier (14 chambres) dédié aux résidents."),
+         pros="Combles = 226 m² de salles communes · Appartement bien délimité au R+2",
+         cons="Couple au 2e étage, légèrement éloigné de la vie commune du RDC",
          floors={'RDC':['A','A','A','A','A'], 'R+1':['B','B','B','B','B'],
-                 'R+2':['B','B','B','C','C'], 'Combles':['A','A','A','C','C']}),
+                 'R+2':['B','B','B','C','C'], 'Combles':['A','A','A','A','A']}),
 
-    dict(n=5, name="Penthouse — Combles Entiers",
-         desc=("Les combles entiers (≈ 247 m²) forment un grand appartement de caractère "
-               "sous le toit mansardé, avec les lucarnes comme fenêtres. "
-               "R+1 et R+2 entiers (≈ 28 chambres potentielles) pour les résidents. "
-               "Nécessite un aménagement complet des combles — concept d'exception."),
-         pros="Logement généreux et lumineux · Capacité maximale pour les résidents",
-         cons="Travaux combles importants · Accès uniquement par escalier",
+    dict(n=5, name="Appartement R+2 Aile Gauche + Combles Ateliers",
+         desc=("L'appartement occupe l'aile gauche du R+2 (Pièces 101-102 équivalent au 2ème étage, ≈ 94 m²). "
+               "Le R+1 est entièrement dédié aux résidents (14 chambres). "
+               "Les combles libèrent 226 m² de salles communes sous le toit mansardé : "
+               "salle polyvalente, sport, chapelle, bibliothèque."),
+         pros="Appartement discret côté nord · Combles 100 % communs · Max hébergement R+1",
+         cons="Appartement côté nord (moins lumineux) · Séparé de RDC par 2 étages de résidents",
          floors={'RDC':['A','A','A','A','A'], 'R+1':['B','B','B','B','B'],
-                 'R+2':['B','B','B','B','B'], 'Combles':['C','C','C','C','C']}),
+                 'R+2':['C','C','B','B','B'], 'Combles':['A','A','A','A','A']}),
 
     dict(n=6, name="Appartement Aile Gauche — R+1",
          desc=("L'appartement occupe l'aile gauche du R+1 (Pièces 101-102 existantes + zones adjacentes, "
@@ -121,14 +130,15 @@ VARIANTS = [
          floors={'RDC':['A','A','A','A','A'], 'R+1':['C','C','B','B','B'],
                  'R+2':['B','B','B','B','B'], 'Combles':['A','A','A','A','A']}),
 
-    dict(n=7, name="Bande Verticale Gauche — Traversante",
-         desc=("L'appartement forme une bande verticale sur toute la hauteur du côté gauche : "
-               "rez-de-chaussée, 1er, 2ème étage et combles. Accès indépendant depuis le côté nord "
-               "(accès cuisine existant). Concept architectural fort avec une circulation privée verticale dédiée."),
-         pros="Accès entièrement indépendant · Très bonne séparation",
-         cons="Nécessite une circulation privée sur 4 niveaux · Appartement linéaire",
+    dict(n=7, name="Bande Verticale Gauche — RDC à R+2 + Combles Communs",
+         desc=("L'appartement forme une bande verticale sur 3 niveaux (RDC, R+1, R+2) côté gauche. "
+               "Accès indépendant depuis le côté nord (accès cuisine existant). "
+               "Les combles sont libérés : la Salle 02 (120 m²) et les Combles 01 (106 m²) "
+               "deviennent des salles communes accessibles par Esc02 depuis l'appartement et Esc01 depuis la Maison."),
+         pros="Accès indépendant sur 3 niveaux · Combles 100 % communs",
+         cons="Appartement linéaire (une section de largeur) · Circulation privée à créer",
          floors={'RDC':['C','A','A','A','A'], 'R+1':['C','B','B','B','B'],
-                 'R+2':['C','B','B','B','B'], 'Combles':['C','A','A','A','A']}),
+                 'R+2':['C','B','B','B','B'], 'Combles':['A','A','A','A','A']}),
 
     dict(n=8, name="Logement de Fonction — RDC Coin Droit",
          desc=("L'appartement du couple est entièrement au RDC droit (Ch01, Ch02, bureau existants, ≈ 58 m²). "
@@ -149,14 +159,16 @@ VARIANTS = [
          floors={'RDC':['A','A','A','A','A'], 'R+1':['B','B','B','C','C'],
                  'R+2':['B','B','B','C','C'], 'Combles':['A','A','A','A','A']}),
 
-    dict(n=10, name="Tour Verticale Droite — 4 Niveaux",
-         desc=("L'appartement occupe la dernière section droite sur les 4 niveaux (≈ 82 m²) : "
-               "entrée/SDB au RDC, cuisine/séjour au R+1, chambres au R+2, bureau/détente dans les combles. "
-               "L'escalier de droite est privatisé. Concept d'appartement-tour discret mais bien délimité."),
-         pros="Appartement sur toute la hauteur · Escalier privatif · Belle vue",
-         cons="Appartement étroit (une section) · Circulation verticale à concevoir",
+    dict(n=10, name="Tour Verticale Droite — RDC à R+2 + Combles Communs",
+         desc=("L'appartement occupe la section droite (5) sur 3 niveaux : "
+               "entrée/SDB au RDC, cuisine/séjour au R+1, chambres au R+2. "
+               "L'escalier hélicoïdal existant (extrémité droite) est privatisé. "
+               "Les combles sont intégralement libérés pour les salles communes "
+               "(Salle 02 · 120 m² + Combles 01 · 106 m²)."),
+         pros="Tour sur 3 niveaux · Escalier privatif · Combles 100 % communs",
+         cons="Appartement étroit (une section) · Séparé en hauteur",
          floors={'RDC':['A','A','A','A','C'], 'R+1':['B','B','B','B','C'],
-                 'R+2':['B','B','B','B','C'], 'Combles':['A','A','A','A','C']}),
+                 'R+2':['B','B','B','B','C'], 'Combles':['A','A','A','A','A']}),
 ]
 
 # ─── Surface calculator ───────────────────────────────────────────────────────
@@ -693,6 +705,17 @@ h1{{text-align:center;color:#2c3e50;font-size:1.7em;margin-bottom:4px;font-weigh
 .plan-cell{{min-width:0}}
 .plan-wrap{{border:1px solid #ddd;border-radius:6px;overflow:hidden;background:#fafaf8}}
 
+/* Combles info box */
+.combles-box{{background:linear-gradient(135deg,#FFF4E8,#FFF8F2);border:2px solid {CA};
+  border-radius:12px;padding:16px 20px;margin:0 auto 20px;max-width:900px}}
+.combles-title{{font-size:1em;font-weight:700;color:{CA_D};margin-bottom:12px;text-align:center}}
+.combles-grid{{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:10px}}
+.combles-room{{background:white;border:1px solid {CA};border-radius:8px;padding:8px 10px;font-size:.78em;
+  line-height:1.5;color:#444}}
+.combles-icon{{font-size:1.4em;display:block;margin-bottom:2px}}
+.combles-room strong{{color:{CA_D};display:block}}
+.combles-note{{font-size:.78em;color:#888;text-align:center;font-style:italic;margin-top:6px}}
+@media(max-width:720px){{.combles-grid{{grid-template-columns:1fr 1fr}}}}
 /* Corridor analysis */
 .corr-box{{background:#F5F3EE;border-left:3px solid #8A7A60;border-radius:0 8px 8px 0;
   padding:8px 12px;margin-bottom:10px;font-size:.8em}}
@@ -761,6 +784,18 @@ h1{{text-align:center;color:#2c3e50;font-size:1.7em;margin-bottom:4px;font-weigh
   <div class="leg"><div class="leg-box" style="background:{CA}"></div>Zone A — Espaces communs MSJ</div>
   <div class="leg"><div class="leg-box" style="background:{CB}"></div>Zone B — Hébergement résidents</div>
   <div class="leg"><div class="leg-box" style="background:{CC}"></div>Zone C — Appartement couple gérant</div>
+</div>
+
+<div class="combles-box">
+  <div class="combles-title">Dernier étage — Combles : 226 m² de salles communes sous le toit mansardé</div>
+  <div class="combles-grid">
+    <div class="combles-room"><span class="combles-icon">🏃</span><strong>Salle polyvalente</strong><br>Salle 02 · 60 m²<br>Réunions, événements, prière collective</div>
+    <div class="combles-room"><span class="combles-icon">⚽</span><strong>Salle sport / bien-être</strong><br>Salle 02 · 62 m²<br>Yoga, activité physique, détente</div>
+    <div class="combles-room"><span class="combles-icon">🔧</span><strong>Atelier</strong><br>Ch28 · 16 m²<br>Mosaïque, bois, sculpture (cahier des charges VSJ)</div>
+    <div class="combles-room"><span class="combles-icon">⛪</span><strong>Chapelle / Oratoire</strong><br>Combles 01 · 52 m²<br>Présence réelle, ≥ 15 personnes</div>
+    <div class="combles-room"><span class="combles-icon">📚</span><strong>Bibliothèque</strong><br>Combles 01 · 54 m²<br>Lecture, formation, espace calme</div>
+  </div>
+  <p class="combles-note">Dans toutes les variantes ci-dessous, les combles sont réservés à la Zone A (espaces communs). L'appartement du couple est situé à un niveau inférieur.</p>
 </div>
 
 <div class="nav">{"".join(f'<a href="#card-v{v["n"]}">V{v["n"]}</a>' for v in VARIANTS)}</div>
