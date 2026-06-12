@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>IA & Claude Code — Les nouveautés en architecture, 3D et CAO</title>
+<meta name="description" content="Les dernières nouveautés sur l'intelligence artificielle, les agents IA et Claude Code, avec un focus sur l'architecture, le dessin technique 3D, la modélisation, le STEP et la CAO." />
+<style>
+  :root{
+    --bg:#06070d;
+    --bg-2:#090b14;
+    --card:rgba(20,26,40,.55);
+    --text:#eaf0fb;
+    --muted:#94a0b8;
+    --accent:#ff7d4d;     /* orange Anthropic */
+    --accent-2:#ffb38a;
+    --cyan:#3ee6ff;
+    --violet:#a07bff;
+    --blue:#5b86ff;
+    --good:#4dffb0;
+    --line:rgba(120,140,180,.16);
+    --glow-c:rgba(62,230,255,.5);
+    --glow-v:rgba(160,123,255,.45);
+    --glow-o:rgba(255,125,77,.5);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;
+    line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden;
+  }
+  a{color:var(--accent-2);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .container{max-width:1200px;margin:0 auto;padding:0 24px;position:relative;z-index:2}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+
+  /* ---------- Animated cosmic + blueprint background ---------- */
+  .bg-fx{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+  .bg-fx .aurora{
+    position:absolute;inset:-20%;
+    background:
+      radial-gradient(35% 30% at 15% 12%, rgba(255,125,77,.22), transparent 60%),
+      radial-gradient(35% 35% at 85% 8%, rgba(62,230,255,.18), transparent 60%),
+      radial-gradient(40% 40% at 70% 80%, rgba(160,123,255,.20), transparent 60%),
+      radial-gradient(30% 30% at 25% 90%, rgba(91,134,255,.15), transparent 60%);
+    filter:blur(20px);
+    animation:auroraDrift 22s ease-in-out infinite alternate;
+  }
+  @keyframes auroraDrift{
+    0%{transform:translate3d(0,0,0) scale(1)}
+    50%{transform:translate3d(2%,-2%,0) scale(1.08)}
+    100%{transform:translate3d(-2%,2%,0) scale(1.04)}
+  }
+  .bg-fx .grid{
+    position:absolute;inset:-2px;
+    background-image:
+      linear-gradient(rgba(120,150,200,.06) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(120,150,200,.06) 1px,transparent 1px);
+    background-size:46px 46px;
+    mask-image:radial-gradient(120% 80% at 50% 0%, #000 30%, transparent 85%);
+    animation:gridMove 18s linear infinite;
+  }
+  @keyframes gridMove{from{background-position:0 0}to{background-position:46px 46px}}
+  /* floating particles */
+  .bg-fx .dot{position:absolute;width:4px;height:4px;border-radius:50%;background:var(--cyan);opacity:.6;box-shadow:0 0 10px var(--glow-c);animation:floaty linear infinite}
+  @keyframes floaty{0%{transform:translateY(0)}50%{transform:translateY(-26px)}100%{transform:translateY(0)}}
+
+  /* ---------- Header ---------- */
+  header.site{position:sticky;top:0;z-index:60;background:rgba(6,7,13,.6);backdrop-filter:saturate(160%) blur(14px);border-bottom:1px solid var(--line)}
+  .nav{display:flex;align-items:center;justify-content:space-between;padding:14px 0}
+  .brand{display:flex;align-items:center;gap:11px;font-weight:700;letter-spacing:.2px}
+  .brand .logo{width:32px;height:32px;border-radius:9px;position:relative;background:conic-gradient(from 180deg,var(--accent),var(--violet),var(--cyan),var(--accent));box-shadow:0 0 18px var(--glow-o);animation:spinHue 8s linear infinite}
+  @keyframes spinHue{to{filter:hue-rotate(360deg)}}
+  .brand .logo::after{content:"";position:absolute;inset:4px;border-radius:6px;background:var(--bg-2)}
+  nav ul{display:flex;gap:22px;list-style:none}
+  nav a{color:var(--muted);font-size:14px;position:relative}
+  nav a::after{content:"";position:absolute;left:0;bottom:-4px;height:2px;width:0;background:linear-gradient(90deg,var(--cyan),var(--violet));transition:width .25s}
+  nav a:hover{color:var(--text);text-decoration:none}
+  nav a:hover::after{width:100%}
+
+  /* ---------- Hero ---------- */
+  .hero{padding:90px 0 70px;position:relative}
+  .hero-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:40px;align-items:center}
+  @media(max-width:920px){.hero-grid{grid-template-columns:1fr}}
+  .eyebrow{display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border-radius:999px;background:rgba(62,230,255,.08);color:var(--cyan);font-size:12px;letter-spacing:.7px;text-transform:uppercase;border:1px solid rgba(62,230,255,.28);box-shadow:0 0 22px rgba(62,230,255,.12)}
+  .eyebrow .live{width:8px;height:8px;border-radius:50%;background:var(--good);box-shadow:0 0 10px var(--good);animation:pulse 1.6s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
+  h1{font-size:clamp(34px,5.2vw,58px);line-height:1.06;margin:20px 0 18px;letter-spacing:-.6px;font-weight:800}
+  h1 .grad{background:linear-gradient(100deg,var(--accent) 0%,var(--violet) 45%,var(--cyan) 100%);background-size:220% auto;-webkit-background-clip:text;background-clip:text;color:transparent;animation:gradFlow 6s ease infinite}
+  @keyframes gradFlow{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+  .lede{color:var(--muted);max-width:620px;font-size:18px}
+  .meta-row{display:flex;flex-wrap:wrap;gap:14px;margin-top:24px;color:var(--muted);font-size:13.5px}
+  .meta-row .dot-i{width:6px;height:6px;border-radius:50%;background:var(--accent);display:inline-block;margin-right:8px;vertical-align:middle;box-shadow:0 0 8px var(--glow-o)}
+  .row-pills{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}
+  .pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);background:rgba(255,255,255,.03);border:1px solid var(--line);padding:6px 11px;border-radius:999px;transition:.2s}
+  .pill:hover{color:var(--text);border-color:var(--cyan);box-shadow:0 0 14px rgba(62,230,255,.18)}
+
+  /* ---------- 3D wireframe object (hero) ---------- */
+  .stage{perspective:1100px;display:flex;align-items:center;justify-content:center;min-height:360px;position:relative}
+  .stage::before{content:"";position:absolute;width:300px;height:300px;border-radius:50%;background:radial-gradient(circle,rgba(160,123,255,.28),transparent 65%);filter:blur(30px);animation:pulseGlow 5s ease-in-out infinite}
+  @keyframes pulseGlow{0%,100%{transform:scale(1);opacity:.7}50%{transform:scale(1.15);opacity:1}}
+  .cube{position:relative;width:170px;height:170px;transform-style:preserve-3d;animation:spin3d 16s linear infinite}
+  @keyframes spin3d{from{transform:rotateX(-22deg) rotateY(0)}to{transform:rotateX(-22deg) rotateY(360deg)}}
+  .face{position:absolute;width:170px;height:170px;border:1.5px solid rgba(62,230,255,.55);background:rgba(62,230,255,.04);box-shadow:inset 0 0 30px rgba(62,230,255,.12),0 0 18px rgba(62,230,255,.1)}
+  .face::before{content:"";position:absolute;inset:18px;border:1px dashed rgba(160,123,255,.5)}
+  .face.f1{transform:translateZ(85px)}
+  .face.f2{transform:rotateY(180deg) translateZ(85px)}
+  .face.f3{transform:rotateY(90deg) translateZ(85px)}
+  .face.f4{transform:rotateY(-90deg) translateZ(85px)}
+  .face.f5{transform:rotateX(90deg) translateZ(85px)}
+  .face.f6{transform:rotateX(-90deg) translateZ(85px)}
+  .core{position:absolute;top:50%;left:50%;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:8px;transform-style:preserve-3d;background:conic-gradient(from 0deg,var(--accent),var(--violet),var(--cyan),var(--accent));box-shadow:0 0 30px var(--glow-o);animation:corePulse 4s ease-in-out infinite}
+  @keyframes corePulse{0%,100%{transform:scale(.9);filter:hue-rotate(0)}50%{transform:scale(1.15);filter:hue-rotate(80deg)}}
+  /* orbiting ring */
+  .stage .ring{position:absolute;width:280px;height:280px;border:1px solid rgba(255,125,77,.35);border-radius:50%;transform:rotateX(74deg);box-shadow:0 0 20px rgba(255,125,77,.15)}
+  .stage .ring.r2{width:330px;height:330px;border-color:rgba(160,123,255,.3);animation:spinRing 9s linear infinite}
+  @keyframes spinRing{to{transform:rotateX(74deg) rotateZ(360deg)}}
+
+  /* ---------- Sections ---------- */
+  section{padding:64px 0;position:relative}
+  section + section{border-top:1px solid var(--line)}
+  .sec-head{display:flex;align-items:center;gap:14px;margin-bottom:8px}
+  .sec-ic{flex:0 0 auto;width:44px;height:44px;display:grid;place-items:center;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid var(--line)}
+  section h2{font-size:clamp(24px,3.2vw,32px);letter-spacing:-.4px;font-weight:800}
+  section .sub{color:var(--muted);margin-bottom:30px;max-width:780px}
+
+  /* reveal on scroll */
+  .reveal{opacity:0;transform:translateY(26px);transition:opacity .7s ease,transform .7s cubic-bezier(.2,.7,.2,1)}
+  .reveal.in{opacity:1;transform:none}
+
+  /* ---------- Cards ---------- */
+  .grid{display:grid;gap:18px}
+  .grid.cols-3{grid-template-columns:repeat(3,1fr)}
+  .grid.cols-2{grid-template-columns:repeat(2,1fr)}
+  @media(max-width:900px){.grid.cols-3,.grid.cols-2{grid-template-columns:1fr}}
+  .card{position:relative;background:var(--card);backdrop-filter:blur(8px);border:1px solid var(--line);border-radius:16px;padding:22px;overflow:hidden;transition:transform .25s,border-color .25s,box-shadow .25s}
+  .card::before{content:"";position:absolute;inset:0;padding:1px;border-radius:16px;background:linear-gradient(135deg,var(--cyan),transparent 40%,transparent 60%,var(--violet));-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;opacity:0;transition:opacity .25s}
+  .card:hover{transform:translateY(-4px);box-shadow:0 18px 50px rgba(0,0,0,.45)}
+  .card:hover::before{opacity:1}
+  .card h3{font-size:18px;margin-bottom:8px}
+  .card p{color:var(--muted);font-size:15px}
+  .tag{display:inline-block;font-size:11px;letter-spacing:.6px;text-transform:uppercase;padding:4px 9px;border-radius:6px;margin-bottom:12px;font-family:ui-monospace,monospace}
+  .tag.cy{background:rgba(62,230,255,.1);color:var(--cyan)}
+  .tag.or{background:rgba(255,125,77,.12);color:var(--accent-2)}
+  .tag.gr{background:rgba(77,255,176,.1);color:var(--good)}
+  .tag.vi{background:rgba(160,123,255,.12);color:var(--violet)}
+
+  /* ---------- Timeline ---------- */
+  .timeline{position:relative;padding-left:26px}
+  .timeline::before{content:"";position:absolute;left:7px;top:6px;bottom:6px;width:2px;background:linear-gradient(var(--cyan),var(--violet),transparent)}
+  .t-item{position:relative;padding:12px 0 22px 20px}
+  .t-item::before{content:"";position:absolute;left:-1px;top:18px;width:14px;height:14px;border-radius:50%;background:var(--bg);border:2px solid var(--cyan);box-shadow:0 0 0 4px rgba(62,230,255,.12),0 0 14px var(--glow-c)}
+  .t-date{font-size:12px;letter-spacing:.6px;color:var(--cyan);text-transform:uppercase;font-family:ui-monospace,monospace}
+  .t-title{font-weight:600;margin:5px 0}
+  .t-desc{color:var(--muted);font-size:15px}
+
+  /* ---------- Illustration figure ---------- */
+  .figure-wrap{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:center}
+  @media(max-width:900px){.figure-wrap{grid-template-columns:1fr}}
+  .svg-card{border:1px solid var(--line);border-radius:18px;background:linear-gradient(160deg,rgba(62,230,255,.05),rgba(160,123,255,.05));padding:18px;position:relative;overflow:hidden}
+  .svg-card svg{width:100%;height:auto;display:block}
+  .draw{stroke-dasharray:1400;stroke-dashoffset:1400;transition:stroke-dashoffset 2.4s ease}
+  .reveal.in .draw{stroke-dashoffset:0}
+  .blink{animation:blink 2.2s ease-in-out infinite}
+  @keyframes blink{0%,100%{opacity:.3}50%{opacity:1}}
+
+  /* ---------- Use cases ---------- */
+  .uc{display:grid;grid-template-columns:74px 1fr;gap:16px;padding:18px 0;border-bottom:1px dashed var(--line)}
+  .uc:last-child{border-bottom:none}
+  .uc .num{font-size:34px;font-weight:800;background:linear-gradient(180deg,var(--cyan),var(--violet));-webkit-background-clip:text;background-clip:text;color:transparent;font-variant-numeric:tabular-nums}
+  .uc h4{font-size:17px;margin-bottom:4px}
+  .uc p{color:var(--muted);font-size:15px}
+
+  blockquote{border-left:3px solid var(--accent);padding:16px 20px;background:rgba(255,125,77,.05);border-radius:0 12px 12px 0;font-size:16px;margin:20px 0;box-shadow:0 0 30px rgba(255,125,77,.06)}
+
+  /* ---------- Tools table ---------- */
+  .tools{display:grid;grid-template-columns:1.2fr 1fr 1fr 1.5fr;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:rgba(12,16,26,.5);backdrop-filter:blur(6px)}
+  .tools .th,.tools .td{padding:14px 16px;border-bottom:1px solid var(--line);font-size:14px}
+  .tools .th{background:rgba(62,230,255,.06);color:var(--cyan);text-transform:uppercase;font-size:12px;letter-spacing:.6px;font-family:ui-monospace,monospace}
+  .tools .td strong{color:var(--text)}
+  .tools .td:hover{background:rgba(62,230,255,.04)}
+  @media(max-width:900px){.tools{grid-template-columns:1fr}.tools .th{display:none}}
+
+  .kbd{font-family:ui-monospace,monospace;background:rgba(62,230,255,.08);border:1px solid var(--line);padding:2px 6px;border-radius:6px;color:var(--cyan);font-size:13px}
+
+  .sources{padding-left:18px;color:var(--muted)}
+  .sources li{margin:6px 0}
+
+  footer{padding:40px 0 70px;color:var(--muted);font-size:13px;border-top:1px solid var(--line);position:relative;z-index:2}
+  .footer-row{display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px}
+
+  /* KPI / chiffres clés */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+  @media(max-width:760px){.kpis{grid-template-columns:repeat(2,1fr)}}
+  .kpi{background:var(--card);backdrop-filter:blur(8px);border:1px solid var(--line);border-radius:16px;padding:20px;text-align:center;position:relative;overflow:hidden}
+  .kpi::after{content:"";position:absolute;left:0;right:0;top:0;height:2px;background:linear-gradient(90deg,var(--cyan),var(--violet))}
+  .kpi .v{font-size:34px;font-weight:800;line-height:1;background:linear-gradient(120deg,var(--cyan),var(--violet));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .kpi .l{color:var(--muted);font-size:13px;margin-top:8px}
+
+  /* Benchmark bars */
+  .bars{display:flex;flex-direction:column;gap:13px;margin-top:6px}
+  .bar{display:grid;grid-template-columns:150px 1fr 48px;align-items:center;gap:12px;font-size:14px}
+  .bar .name{color:var(--text)}
+  .bar .track{height:14px;border-radius:999px;background:rgba(255,255,255,.05);border:1px solid var(--line);overflow:hidden}
+  .bar .fill{display:block;height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,var(--blue),#3a4357);transition:width 1.4s cubic-bezier(.2,.7,.2,1)}
+  .bar.cl .fill{background:linear-gradient(90deg,var(--accent),var(--violet));box-shadow:0 0 12px rgba(255,125,77,.3)}
+  .reveal.in .fill{width:var(--w)}
+  .bar .score{text-align:right;font-family:ui-monospace,monospace;color:var(--muted)}
+  .bar.cl .score{color:var(--accent-2)}
+  @media(max-width:620px){.bar{grid-template-columns:110px 1fr 42px;font-size:13px}}
+
+  /* Glossaire */
+  .gloss{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  @media(max-width:900px){.gloss{grid-template-columns:1fr 1fr}}
+  @media(max-width:600px){.gloss{grid-template-columns:1fr}}
+  .gloss .term{border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:rgba(255,255,255,.02);transition:.2s}
+  .gloss .term:hover{border-color:var(--cyan);box-shadow:0 0 14px rgba(62,230,255,.12)}
+  .gloss dt{font-weight:700;color:var(--cyan);font-family:ui-monospace,monospace;font-size:14px}
+  .gloss dd{color:var(--muted);font-size:14px;margin:5px 0 0}
+
+  @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.reveal{opacity:1;transform:none}.draw{stroke-dashoffset:0}.fill{width:var(--w)}}
+</style>
+</head>
+<body>
+
+<div class="bg-fx" aria-hidden="true">
+  <div class="aurora"></div>
+  <div class="grid"></div>
+  <!-- particles injected by JS -->
+</div>
+
+<header class="site">
+  <div class="container nav">
+    <div class="brand"><span class="logo"></span><span>IA &amp; Claude Code — Veille 2026</span></div>
+    <nav aria-label="Navigation principale">
+      <ul>
+        <li><a href="#actualites">Actualités</a></li>
+        <li><a href="#claude-code">Claude Code</a></li>
+        <li><a href="#archi">Architecture</a></li>
+        <li><a href="#cao">CAO / 3D / STEP</a></li>
+        <li><a href="#benchmark">Benchmarks</a></li>
+        <li><a href="#outils">Outils</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <!-- ================= HERO ================= -->
+  <section class="hero">
+    <div class="container hero-grid">
+      <div class="reveal in">
+        <span class="eyebrow"><span class="live"></span>Veille technologique · Mai 2026</span>
+        <h1>Les agents IA entrent dans <span class="grad">l'architecture, la 3D et la CAO</span></h1>
+        <p class="lede">Tour d'horizon des dernières nouveautés sur l'intelligence artificielle, les agents autonomes et <strong>Claude Code</strong> d'Anthropic — avec un focus concret sur la modélisation 3D, le dessin technique, les fichiers STEP, le BIM et l'architecture paramétrique.</p>
+        <div class="meta-row">
+          <span><span class="dot-i"></span>Mise à jour : 28 mai 2026</span>
+          <span><span class="dot-i"></span>Sources : Anthropic, Autodesk, MIT Tech Review, InfoQ</span>
+          <span><span class="dot-i"></span>Lecture ≈ 8 min</span>
+        </div>
+        <div class="row-pills">
+          <span class="pill">#ClaudeCode</span><span class="pill">#MCP</span><span class="pill">#Revit2027</span>
+          <span class="pill">#Fusion</span><span class="pill">#SketchUp</span><span class="pill">#OpenSCAD</span>
+          <span class="pill">#STEP</span><span class="pill">#BIM</span><span class="pill">#Paramétrique</span>
+        </div>
+      </div>
+
+      <!-- 3D wireframe object -->
+      <div class="stage" aria-hidden="true">
+        <div class="ring"></div>
+        <div class="ring r2"></div>
+        <div class="cube">
+          <div class="face f1"></div><div class="face f2"></div>
+          <div class="face f3"></div><div class="face f4"></div>
+          <div class="face f5"></div><div class="face f6"></div>
+          <div class="core"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= CHIFFRES CLES ================= -->
+  <section id="chiffres" style="padding-top:32px;padding-bottom:32px">
+    <div class="container">
+      <div class="kpis reveal">
+        <div class="kpi"><div class="v">88,6 %</div><div class="l">Claude Opus 4.8 sur SWE-bench Verified (mai 2026)</div></div>
+        <div class="kpi"><div class="v">600</div><div class="l">exemples du benchmark Text2CAD-Bench (niveaux L1–L4)</div></div>
+        <div class="kpi"><div class="v">221</div><div class="l">Skills open-source pour la construction (DDC)</div></div>
+        <div class="kpi"><div class="v">100 %</div><div class="l">taux d'exécution du pipeline multi-agent CAO CADSmith</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= ACTUALITES ================= -->
+  <section id="actualites">
+    <div class="container">
+      <div class="sec-head reveal">
+        <div class="sec-ic">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3ee6ff" stroke-width="1.6"><path d="M12 2v4M12 18v4M2 12h4M18 12h4M5 5l3 3M16 16l3 3M19 5l-3 3M8 16l-3 3"/><circle cx="12" cy="12" r="3"/></svg>
+        </div>
+        <h2>Les actualités qui ont marqué les dernières semaines</h2>
+      </div>
+      <p class="sub reveal"><em>Code with Claude 2026</em> (San Francisco, 6 mai) a posé une nouvelle feuille de route : agents managés, orchestration multi-agents, mémoire « Dreaming », et connecteurs natifs vers les outils de création.</p>
+
+      <div class="timeline reveal">
+        <div class="t-item"><div class="t-date">6 mai 2026 — San Francisco</div><div class="t-title">Code with Claude 2026 : agents managés & orchestration multi-agents</div><div class="t-desc">Cinq fonctionnalités majeures : <strong>Dreaming</strong> (auto-amélioration par revue des sessions passées), <strong>Outcomes</strong>, orchestration multi-agents avec délégation à des spécialistes, <strong>Claude Finance</strong> (10 agents pré-construits) et les <strong>Add-ins</strong>.</div></div>
+        <div class="t-item"><div class="t-date">28 avril 2026</div><div class="t-title">Connecteurs Claude pour Adobe, Blender, Fusion & SketchUp</div><div class="t-desc">Les abonnés Fusion créent et modifient des modèles 3D <strong>en conversant</strong> avec Claude. Le langage naturel devient un front-end aux esquisses, features et contraintes paramétriques.</div></div>
+        <div class="t-item"><div class="t-date">Mai 2026</div><div class="t-title">Claude Code : remote control, auto mode, worktrees</div><div class="t-desc">Une session démarrée sur un poste continue sur mobile. Le <strong>mode automatique</strong> filtre les actions destructrices et les injections de prompts ; les <strong>worktrees</strong> isolent les branches Git en autonomie.</div></div>
+        <div class="t-item"><div class="t-date">Mai 2026</div><div class="t-title">Sécurité : MCP tunnels & sandboxes auto-hébergées</div><div class="t-desc">Deux briques de sécurité pour les agents managés : tunnels MCP pour exposer des outils internes, et exécution dans des sandboxes contrôlées par l'entreprise.</div></div>
+        <div class="t-item"><div class="t-date">Revit 2027 (annoncé)</div><div class="t-title">Serveur MCP intégré directement dans Revit</div><div class="t-desc">L'IA se connecte au projet ouvert et lit le modèle <strong>en temps réel</strong> — éléments, paramètres, géométrie — au lieu de manipuler des exports figés. Changement de paradigme pour le BIM.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= CLAUDE CODE ================= -->
+  <section id="claude-code">
+    <div class="container">
+      <div class="sec-head reveal">
+        <div class="sec-ic">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#a07bff" stroke-width="1.6"><path d="M8 9l-4 3 4 3M16 9l4 3-4 3M13 5l-2 14"/></svg>
+        </div>
+        <h2>Claude Code : de l'éditeur de code à l'agent de conception</h2>
+      </div>
+      <p class="sub reveal">Avec les <strong>Skills</strong> et le protocole <strong>MCP</strong> (Model Context Protocol), Claude Code devient l'orchestrateur d'outils métiers — y compris les logiciels de CAO et de BIM.</p>
+
+      <!-- Neural network illustration + cards -->
+      <div class="figure-wrap reveal" style="margin-bottom:24px">
+        <div class="svg-card">
+          <svg viewBox="0 0 420 240" role="img" aria-label="Schéma de réseau neuronal d'agents">
+            <defs>
+              <linearGradient id="gn" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#3ee6ff"/><stop offset="1" stop-color="#a07bff"/>
+              </linearGradient>
+            </defs>
+            <!-- edges -->
+            <g stroke="url(#gn)" stroke-width="1" opacity=".5" class="draw" fill="none">
+              <path d="M60 60 L180 50 M60 60 L180 120 M60 120 L180 50 M60 120 L180 190 M60 180 L180 120 M60 180 L180 190
+                       M180 50 L300 80 M180 120 L300 80 M180 120 L300 160 M180 190 L300 160
+                       M300 80 L370 120 M300 160 L370 120"/>
+            </g>
+            <!-- nodes -->
+            <g fill="#0a0d17" stroke="#3ee6ff" stroke-width="1.5">
+              <circle cx="60" cy="60" r="9" class="blink"/><circle cx="60" cy="120" r="9"/><circle cx="60" cy="180" r="9" class="blink"/>
+              <circle cx="180" cy="50" r="9"/><circle cx="180" cy="120" r="9" class="blink"/><circle cx="180" cy="190" r="9"/>
+              <circle cx="300" cy="80" r="9" class="blink"/><circle cx="300" cy="160" r="9"/>
+            </g>
+            <circle cx="370" cy="120" r="13" fill="url(#gn)"/>
+            <text x="60" y="222" fill="#94a0b8" font-size="11" font-family="monospace">Prompt</text>
+            <text x="170" y="222" fill="#94a0b8" font-size="11" font-family="monospace">Skills + MCP</text>
+            <text x="320" y="222" fill="#94a0b8" font-size="11" font-family="monospace">Action</text>
+          </svg>
+        </div>
+        <div class="grid" style="gap:14px">
+          <article class="card"><span class="tag or">Capacité</span><h3>Skills : workflows métiers réutilisables</h3><p>Un fichier Markdown décrit une procédure : audit de famille Revit, parsing d'un rapport de clash, génération de livrable, itération sur un modèle paramétrique. Claude lit la consigne et l'exécute pas à pas.</p></article>
+          <article class="card"><span class="tag cy">Capacité</span><h3>MCP : connecter les logiciels</h3><p>Le Model Context Protocol expose Revit, Fusion, SketchUp, OpenSCAD… comme des fonctions appelables. L'agent lit l'état du modèle, exécute des opérations, observe le résultat et corrige.</p></article>
+          <article class="card"><span class="tag gr">Capacité</span><h3>Boucle de retour visuel</h3><p>Des serveurs comme <em>CAD Agent</em> rendent une image après chaque commande. L'agent <strong>voit ce qu'il construit</strong> et améliore radicalement ses itérations 3D.</p></article>
+        </div>
+      </div>
+
+      <blockquote class="reveal">« Plusieurs développeurs décrivent leur métier comme du <em>management</em> de Claude Code plutôt que de l'écriture de code. Vous décrivez le besoin en langage clair ; l'agent planifie, exécute et itère jusqu'à atteindre l'objectif. »</blockquote>
+    </div>
+  </section>
+
+  <!-- ================= ARCHITECTURE ================= -->
+  <section id="archi">
+    <div class="container">
+      <div class="sec-head reveal">
+        <div class="sec-ic">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ff7d4d" stroke-width="1.6"><path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6"/></svg>
+        </div>
+        <h2>Architecture & BIM : Claude pilote Revit et SketchUp</h2>
+      </div>
+      <p class="sub reveal">L'irruption de Claude dans les suites Autodesk et Trimble change la conception, la vérification et la documentation d'un projet. Usages déjà testés en production.</p>
+
+      <div class="figure-wrap reveal">
+        <div>
+          <div class="uc"><div class="num">01</div><div><h4>Conformité réglementaire & évacuation</h4><p>Connecté à un modèle Revit via MCP, Claude vérifie largeurs de circulation et distances d'évacuation et signale les non-conformités dans le projet ouvert — testé par BIMsmith sur six scénarios réels.</p></div></div>
+          <div class="uc"><div class="num">02</div><div><h4>Architecture paramétrique multi-étages</h4><p>Plans d'étage, étude d'ensoleillement, faisabilité solaire, diagrammes d'espaces : l'agent compose des scripts que l'architecte ajuste en langage naturel.</p></div></div>
+          <div class="uc"><div class="num">03</div><div><h4>Coordination BIM automatisée</h4><p>Skills dédiés à la lecture des rapports de clash, catégorisation des conflits, création de tickets et mise à jour du suivi — sans quitter la session.</p></div></div>
+        </div>
+        <div class="svg-card">
+          <svg viewBox="0 0 420 280" role="img" aria-label="Plan filaire d'un bâtiment">
+            <!-- dimension lines -->
+            <g stroke="#ff7d4d" stroke-width="1" opacity=".55" class="draw" fill="none">
+              <path d="M40 250 L380 250 M40 246 L40 254 M380 246 L380 254"/>
+              <path d="M30 60 L30 250 M26 60 L34 60 M26 250 L34 250"/>
+            </g>
+            <!-- building elevation -->
+            <g stroke="#3ee6ff" stroke-width="1.6" fill="none" class="draw">
+              <path d="M70 230 L70 90 L210 40 L350 90 L350 230 Z"/>
+              <path d="M70 90 L210 130 L350 90 M210 130 L210 40"/>
+              <path d="M110 230 L110 160 L160 160 L160 230"/>
+              <rect x="190" y="150" width="40" height="40"/>
+              <rect x="260" y="150" width="40" height="40"/>
+            </g>
+            <!-- grid floor -->
+            <g stroke="#a07bff" stroke-width=".7" opacity=".4">
+              <path d="M70 230 L350 230 M85 245 L365 245"/>
+            </g>
+            <circle cx="210" cy="85" r="5" fill="#ff7d4d" class="blink"/>
+            <text x="150" y="270" fill="#94a0b8" font-size="11" font-family="monospace">BIM · IFC · paramétrique</text>
+          </svg>
+        </div>
+      </div>
+
+      <div class="grid cols-2 reveal" style="margin-top:8px">
+        <article class="card"><span class="tag or">Audit</span><h3>Audit de familles & documents</h3><p>Un plugin combine connecteur Revit MCP, Skill d'audit, Skill de style rédactionnel et commande <span class="kbd">/audit-warnings</span> : l'agent inspecte les warnings, les hiérarchise, rédige le rapport.</p></article>
+        <article class="card"><span class="tag vi">Open-source</span><h3>221 Skills pour la construction</h3><p>Le projet <em>DDC_Skills_for_AI_Agents_in_Construction</em> couvre analyse BIM, estimation des coûts, planning et contrôle documentaire — utilisables directement dans Claude Code.</p></article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= CAO ================= -->
+  <section id="cao">
+    <div class="container">
+      <div class="sec-head reveal">
+        <div class="sec-ic">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4dffb0" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg>
+        </div>
+        <h2>CAO, dessin technique 3D & STEP : ce qui fonctionne vraiment</h2>
+      </div>
+      <p class="sub reveal">2026 marque le passage du <em>text-to-STL</em> (maillages jetables) au <em>text-to-STEP</em> (géométrie paramétrique éditable). Ce qui sort du laboratoire pour entrer en atelier.</p>
+
+      <div class="figure-wrap reveal" style="margin-bottom:24px">
+        <div class="svg-card">
+          <svg viewBox="0 0 420 260" role="img" aria-label="Pièce mécanique filaire avec cotation">
+            <defs><linearGradient id="gg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4dffb0"/><stop offset="1" stop-color="#3ee6ff"/></linearGradient></defs>
+            <!-- gear -->
+            <g stroke="url(#gg)" stroke-width="1.6" fill="none" class="draw">
+              <circle cx="170" cy="130" r="70"/>
+              <circle cx="170" cy="130" r="28"/>
+              <g>
+                <path d="M170 50 l8 0 0 -14 -16 0 0 14 z"/><path d="M170 210 l8 0 0 14 -16 0 0 -14 z"/>
+                <path d="M90 130 l0 8 -14 0 0 -16 14 0 z"/><path d="M250 130 l0 8 14 0 0 -16 -14 0 z"/>
+                <path d="M113 73 l6 6 -10 10 -11 -11 10 -10 z"/><path d="M227 187 l6 6 -10 10 -11 -11 10 -10 z"/>
+                <path d="M227 73 l-6 6 10 10 11 -11 -10 -10 z"/><path d="M113 187 l-6 6 10 10 11 -11 -10 -10 z"/>
+              </g>
+            </g>
+            <!-- dimension / annotation -->
+            <g stroke="#ff7d4d" stroke-width="1" opacity=".7" fill="none" class="draw">
+              <path d="M170 130 L340 60 M340 60 l-10 -2 M340 60 l-6 9"/>
+              <path d="M170 130 L170 130"/>
+            </g>
+            <circle cx="170" cy="130" r="3" fill="#ff7d4d"/>
+            <text x="300" y="50" fill="#3ee6ff" font-size="12" font-family="monospace">Ø 70.0</text>
+            <text x="300" y="200" fill="#4dffb0" font-size="11" font-family="monospace">export .STEP</text>
+            <rect x="296" y="190" width="14" height="14" fill="none" stroke="#4dffb0" stroke-width="1" class="blink"/>
+          </svg>
+        </div>
+        <div class="grid" style="gap:14px">
+          <article class="card"><span class="tag or">Fusion + Claude</span><h3>Conversation paramétrique (Autodesk Fusion)</h3><p>Création/modification par dialogue : esquisses, features, contraintes. Claude propose, l'ingénieur valide, l'historique paramétrique reste éditable.</p></article>
+          <article class="card"><span class="tag gr">STEP natif</span><h3>CADScribe & co. : sortie STEP éditable</h3><p>Contrairement aux générateurs « jouet » limités aux maillages, ces outils exportent du STEP — des arbres de features réutilisables dans SolidWorks, CATIA, Fusion, Inventor.</p></article>
+        </div>
+      </div>
+
+      <div class="grid cols-3 reveal">
+        <article class="card"><span class="tag or">SketchUp + Claude</span><h3>Modélisation conceptuelle assistée</h3><p>Intégration native Trimble : génération de masses, variations volumétriques et itérations rapides en phase d'esquisse.</p></article>
+        <article class="card"><span class="tag cy">OpenSCAD</span><h3>Agent OpenSCAD pour pièces imprimables</h3><p>Génère du code, rend une vue PNG, l'inspecte et corrige. Chaque itération versionnée. Idéal pour les pièces fonctionnelles d'impression 3D.</p></article>
+        <article class="card"><span class="tag vi">Generative design</span><h3>Conception pilotée par contraintes</h3><p>Matériau, poids, coût, performance : l'IA produit des centaines d'alternatives optimisées. L'ingénieur sélectionne, raffine, valide.</p></article>
+      </div>
+
+      <blockquote class="reveal">À retenir : la plupart des « générateurs CAO IA » de 2026 ne produisent pas encore un fichier que l'on enverrait sans relecture à un atelier d'usinage. La vraie valeur se trouve dans la <strong>recherche de pièces existantes</strong>, l'<strong>assemblage automatisé</strong> et l'<strong>édition par dialogue</strong> — pas la génération <em>from scratch</em>.</blockquote>
+    </div>
+  </section>
+
+  <!-- ================= BENCHMARK ================= -->
+  <section id="benchmark">
+    <div class="container">
+      <div class="sec-head reveal">
+        <div class="sec-ic">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3ee6ff" stroke-width="1.6"><path d="M3 3v18h18"/><rect x="7" y="11" width="3" height="7"/><rect x="12" y="7" width="3" height="11"/><rect x="17" y="13" width="3" height="5"/></svg>
+        </div>
+        <h2>Benchmarks : où en sont les agents en mai 2026 ?</h2>
+      </div>
+      <p class="sub reveal">Deux familles de mesures à distinguer : la performance des <strong>agents de code</strong> (SWE-bench Verified, mature) et la qualité de la <strong>génération CAO / STEP</strong> (benchmarks dédiés, encore jeunes).</p>
+
+      <div class="figure-wrap reveal">
+        <div class="svg-card">
+          <h3 style="margin-bottom:14px;font-size:16px">Agents de code — SWE-bench Verified</h3>
+          <div class="bars">
+            <div class="bar"><span class="name">GPT-5.5</span><span class="track"><span class="fill" style="--w:88.7%"></span></span><span class="score">88,7</span></div>
+            <div class="bar cl"><span class="name">Claude Opus 4.8</span><span class="track"><span class="fill" style="--w:88.6%"></span></span><span class="score">88,6</span></div>
+            <div class="bar cl"><span class="name">Claude Opus 4.7</span><span class="track"><span class="fill" style="--w:87.6%"></span></span><span class="score">87,6</span></div>
+            <div class="bar"><span class="name">GPT-5.3-Codex</span><span class="track"><span class="fill" style="--w:85%"></span></span><span class="score">85,0</span></div>
+            <div class="bar cl"><span class="name">Claude Sonnet 4.6</span><span class="track"><span class="fill" style="--w:79.6%"></span></span><span class="score">79,6</span></div>
+            <div class="bar cl"><span class="name">Claude Haiku 4.5</span><span class="track"><span class="fill" style="--w:73.3%"></span></span><span class="score">73,3</span></div>
+          </div>
+          <p class="mono" style="color:var(--muted);font-size:12px;margin-top:14px">% de tickets résolus · scores agrégés de leaderboards publics, variables selon le harness et la date.</p>
+        </div>
+        <div class="grid" style="gap:14px">
+          <article class="card"><span class="tag cy">Text2CAD-Bench</span><h3>Évaluer le text-to-CAD</h3><p>600 exemples humains sur 4 niveaux, de la géométrie standard (L1–L2) à la topologie complexe et aux surfaces libres (L3), jusqu'aux domaines réels (L4). Les modèles chutent nettement sur les features avancées.</p></article>
+          <article class="card"><span class="tag vi">CadBench</span><h3>Complexité par faces B-rep</h3><p>Benchmark multimodal qui répartit les pièces selon le nombre de faces B-rep — une mesure objective de complexité géométrique pour la génération de programmes CAO.</p></article>
+          <article class="card"><span class="tag gr">CADSmith</span><h3>Multi-agent + validation géométrique</h3><p>100 % d'exécution, F1 médian 0,985, IoU 0,963 et distance de Chamfer ramenée de 28,37 à 0,74 grâce à une validation géométrique programmatique.</p></article>
+          <article class="card"><span class="tag or">STEP-LLM</span><h3>STEP direct depuis le langage</h3><p>Premier cadre unifié générant directement des fichiers STEP, combinant RAG (contexte enrichi) et apprentissage par renforcement à récompenses géométriques.</p></article>
+        </div>
+      </div>
+
+      <blockquote class="reveal">Prudence méthodologique : les leaderboards de code (SWE-bench) sont matures mais évoluent chaque semaine et dépendent du <em>harness</em> ; les benchmarks CAO/STEP, eux, sont récents et mesurent surtout la <strong>fidélité géométrique</strong> sur des pièces relativement simples. Aucun ne garantit encore un livrable prêt pour l'usinage.</blockquote>
+    </div>
+  </section>
+
+  <!-- ================= OUTILS ================= -->
+  <section id="outils">
+    <div class="container">
+      <div class="sec-head reveal">
+        <div class="sec-ic">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#5b86ff" stroke-width="1.6"><path d="M14 7l3 3-9 9H5v-3z"/><path d="M14 7l-2-2 3-3 2 2-3 3"/></svg>
+        </div>
+        <h2>Panorama des outils & connecteurs</h2>
+      </div>
+      <p class="sub reveal">Intégrations Claude Code / MCP pertinentes pour l'architecture et la CAO, mai 2026.</p>
+
+      <div class="tools reveal" role="table">
+        <div class="th">Outil / Logiciel</div><div class="th">Type</div><div class="th">Sortie</div><div class="th">Usage typique</div>
+        <div class="td"><strong>Autodesk Fusion</strong> + Claude</div><div class="td">CAO paramétrique</div><div class="td">.f3d, STEP, IGES</div><div class="td">Conception mécanique par dialogue</div>
+        <div class="td"><strong>SketchUp</strong> + Claude</div><div class="td">Modélisation 3D</div><div class="td">.skp, IFC</div><div class="td">Esquisse architecturale, études volumétriques</div>
+        <div class="td"><strong>Revit</strong> (MCP server)</div><div class="td">BIM</div><div class="td">.rvt, IFC</div><div class="td">Conformité, coordination, audit de familles</div>
+        <div class="td"><strong>Revit 2027</strong></div><div class="td">BIM (MCP natif)</div><div class="td">.rvt</div><div class="td">Lecture/écriture temps réel du modèle ouvert</div>
+        <div class="td"><strong>OpenSCAD Agent</strong></div><div class="td">CAO programmatique</div><div class="td">.scad, STL</div><div class="td">Pièces fonctionnelles, impression 3D</div>
+        <div class="td"><strong>CAD Agent</strong> (Docker)</div><div class="td">Serveur de rendu</div><div class="td">PNG + commandes</div><div class="td">Boucle de feedback visuel pour agents 3D</div>
+        <div class="td"><strong>CADScribe</strong></div><div class="td">Text-to-STEP</div><div class="td">STEP éditable</div><div class="td">Prototypage compatible CAO pro</div>
+        <div class="td"><strong>AEC Data Model</strong> MCP</div><div class="td">Autodesk Platform Services</div><div class="td">API graphe BIM</div><div class="td">Interrogation de données AEC en langage naturel</div>
+        <div class="td"><strong>DDC Skills</strong> (open-source)</div><div class="td">221 Skills construction</div><div class="td">Markdown / scripts</div><div class="td">BIM, coût, planning, contrôle documentaire</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= CONCLUSION ================= -->
+  <section id="conclusion">
+    <div class="container">
+      <div class="sec-head reveal"><h2>Ce qu'il faut retenir</h2></div>
+      <div class="grid cols-3 reveal">
+        <article class="card"><h3>1. L'agent remplace l'export</h3><p>Avec MCP, l'IA ne lit plus des PDF figés : elle parle au modèle vivant. Le BIM devient <em>interactif</em>.</p></article>
+        <article class="card"><h3>2. Le STEP éditable arrive</h3><p>La génération produit enfin des arbres de features, pas seulement des maillages. La CAO pro s'ouvre à l'IA.</p></article>
+        <article class="card"><h3>3. Skills + MCP = métier</h3><p>La combinaison procédures + outils transforme Claude Code en plateforme pour l'architecte, l'ingénieur et le BIM manager.</p></article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= GLOSSAIRE ================= -->
+  <section id="glossaire">
+    <div class="container">
+      <div class="sec-head reveal">
+        <div class="sec-ic">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#a07bff" stroke-width="1.6"><path d="M4 4h13a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4z"/><path d="M4 4v14a2 2 0 0 0 2 2h11"/></svg>
+        </div>
+        <h2>Glossaire</h2>
+      </div>
+      <dl class="gloss reveal">
+        <div class="term"><dt>MCP</dt><dd>Model Context Protocol — standard qui expose des outils et des données à un agent comme des fonctions appelables.</dd></div>
+        <div class="term"><dt>BIM</dt><dd>Building Information Modeling — maquette numérique enrichie d'un bâtiment (géométrie + données).</dd></div>
+        <div class="term"><dt>STEP</dt><dd>Format CAO neutre (ISO 10303) décrivant une géométrie paramétrique éditable, interopérable entre logiciels.</dd></div>
+        <div class="term"><dt>IFC</dt><dd>Industry Foundation Classes — format d'échange ouvert pour les données BIM.</dd></div>
+        <div class="term"><dt>B-rep</dt><dd>Boundary Representation — description d'un solide par ses faces, arêtes et sommets.</dd></div>
+        <div class="term"><dt>Distance de Chamfer</dt><dd>Métrique mesurant l'écart entre deux nuages de points ; sert à noter la fidélité d'une forme générée.</dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <!-- ================= SOURCES ================= -->
+  <section id="sources">
+    <div class="container">
+      <div class="sec-head reveal"><h2>Sources</h2></div>
+      <ul class="sources reveal">
+        <li><a href="https://www.anthropic.com/news" target="_blank" rel="noopener">Anthropic — News officielles</a></li>
+        <li><a href="https://www.infoq.com/news/2026/05/code-with-claude/" target="_blank" rel="noopener">InfoQ — Code with Claude 2026</a></li>
+        <li><a href="https://www.technologyreview.com/2026/05/21/1137735/anthropics-code-with-claude-showed-off-codings-future-whether-you-like-it-or-not/" target="_blank" rel="noopener">MIT Technology Review — Code with Claude 2026</a></li>
+        <li><a href="https://architosh.com/2026/05/sketchup-adds-anthropics-claude-ai-powered-3d-modeling/" target="_blank" rel="noopener">Architosh — SketchUp adopte Claude</a></li>
+        <li><a href="https://all3dp.com/4/claude-comes-to-cad-anthropics-ai-can-now-help-build-3d-models-in-autodesk-fusion/" target="_blank" rel="noopener">All3DP Pro — Claude dans Autodesk Fusion</a></li>
+        <li><a href="https://renderai.app/blog/claude-cad-parametric-architecture/" target="_blank" rel="noopener">RenderAI — Claude + SketchUp & Fusion</a></li>
+        <li><a href="https://aps.autodesk.com/blog/talk-your-bim-exploring-aec-data-model-mcp-server-claude" target="_blank" rel="noopener">Autodesk Platform Services — AEC Data Model MCP</a></li>
+        <li><a href="https://blog.bimsmith.com/Revit-2027-What-the-Built-In-MCP-Server-Actually-Does-in-Practice" target="_blank" rel="noopener">BIMsmith — Revit 2027 & le serveur MCP</a></li>
+        <li><a href="https://archgyan.com/how-architects-use-claude-code-skills-automate-work/" target="_blank" rel="noopener">Archgyan — Claude Code Skills pour architectes</a></li>
+        <li><a href="https://github.com/datadrivenconstruction/DDC_Skills_for_AI_Agents_in_Construction" target="_blank" rel="noopener">DDC — 221 Skills pour la construction</a></li>
+        <li><a href="https://github.com/iancanderson/openscad-agent" target="_blank" rel="noopener">openscad-agent — Agent Claude Code pour OpenSCAD</a></li>
+        <li><a href="https://www.getleo.ai/blog/best-ai-for-cad-generation-2026" target="_blank" rel="noopener">Leo AI — Best AI for CAD Generation 2026</a></li>
+        <li><a href="https://www.energent.ai/energent/compare/en/ai-tools-for-stl-to-step" target="_blank" rel="noopener">Energent.ai — Outils STL → STEP</a></li>
+        <li><a href="https://www.engineering.com/3-ai-features-coming-to-every-cad-program-in-2026/" target="_blank" rel="noopener">Engineering.com — 3 fonctions IA dans tous les CAO</a></li>
+        <li><a href="https://www.marc0.dev/en/leaderboard" target="_blank" rel="noopener">SWE-bench Leaderboard (mai 2026)</a></li>
+        <li><a href="https://www.morphllm.com/claude-benchmarks" target="_blank" rel="noopener">MorphLLM — Claude Benchmarks 2026</a></li>
+        <li><a href="https://arxiv.org/html/2605.18430" target="_blank" rel="noopener">Text2CAD-Bench — benchmark text-to-CAD paramétrique</a></li>
+        <li><a href="https://arxiv.org/html/2605.10873v1" target="_blank" rel="noopener">CadBench — benchmark multimodal CAO</a></li>
+        <li><a href="https://arxiv.org/pdf/2603.26512" target="_blank" rel="noopener">CADSmith — génération CAO multi-agent</a></li>
+        <li><a href="https://arxiv.org/pdf/2601.12641" target="_blank" rel="noopener">STEP-LLM — génération de fichiers STEP par LLM</a></li>
+      </ul>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="container footer-row">
+    <div>© 2026 — Veille IA & Claude Code · Architecture, 3D, CAO.</div>
+    <div class="mono">Illustrations générées par IA (SVG) · mis à jour le 28 mai 2026.</div>
+  </div>
+</footer>
+
+<script>
+  // Floating particles
+  (function(){
+    const fx=document.querySelector('.bg-fx');
+    const colors=['#3ee6ff','#a07bff','#ff7d4d','#4dffb0'];
+    for(let i=0;i<26;i++){
+      const d=document.createElement('span');
+      d.className='dot';
+      d.style.left=Math.random()*100+'%';
+      d.style.top=Math.random()*100+'%';
+      d.style.background=colors[i%colors.length];
+      d.style.boxShadow='0 0 10px '+colors[i%colors.length];
+      d.style.animationDuration=(6+Math.random()*8)+'s';
+      d.style.animationDelay=(-Math.random()*8)+'s';
+      d.style.opacity=(0.25+Math.random()*0.5).toFixed(2);
+      fx.appendChild(d);
+    }
+  })();
+
+  // Scroll reveal
+  (function(){
+    const els=document.querySelectorAll('.reveal');
+    const io=new IntersectionObserver((entries)=>{
+      entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target);} });
+    },{threshold:.15});
+    els.forEach(el=>io.observe(el));
+  })();
+</script>
+
+</body>
+</html>
