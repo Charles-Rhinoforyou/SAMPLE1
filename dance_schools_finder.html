@@ -1,0 +1,1177 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Écoles de Danse — Aix-les-Bains</title>
+  <style>
+    :root {
+      --primary: #6c3fc5;
+      --primary-light: #ede8fa;
+      --accent: #e84393;
+      --ok: #22c55e;
+      --warn: #f59e0b;
+      --danger: #ef4444;
+      --bg: #f8f7fc;
+      --card: #ffffff;
+      --border: #e2d9f3;
+      --text: #1a1229;
+      --muted: #6b7280;
+      --radius: 12px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: linear-gradient(135deg, var(--primary) 0%, #9b59b6 100%);
+      color: #fff;
+      padding: 24px 32px 20px;
+    }
+    header h1 { font-size: 1.7rem; font-weight: 700; }
+    header p  { font-size: 0.9rem; opacity: 0.85; margin-top: 4px; }
+
+    .ref-info {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(255,255,255,.15);
+      border-radius: 8px;
+      padding: 6px 12px;
+      margin-top: 10px;
+      font-size: 0.82rem;
+    }
+
+    /* ── Layout ── */
+    .container { max-width: 1100px; margin: 0 auto; padding: 24px 20px; }
+
+    /* ── Filter Panel ── */
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 1px 4px rgba(108,63,197,.07);
+    }
+    .panel h2 {
+      font-size: 1rem; font-weight: 600;
+      color: var(--primary);
+      margin-bottom: 16px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .filter-row {
+      display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end;
+    }
+    .filter-group { display: flex; flex-direction: column; gap: 6px; }
+    .filter-group label {
+      font-size: 0.78rem; font-weight: 600;
+      color: var(--muted); text-transform: uppercase; letter-spacing: .04em;
+    }
+    .day-checks {
+      display: flex; gap: 10px;
+    }
+    .day-chip {
+      display: flex; align-items: center; gap: 6px;
+      background: var(--primary-light);
+      border: 1.5px solid transparent;
+      border-radius: 20px;
+      padding: 5px 14px;
+      cursor: pointer;
+      font-size: 0.84rem; font-weight: 500;
+      transition: all .15s;
+      user-select: none;
+    }
+    .day-chip input[type=checkbox] { display: none; }
+    .day-chip.active {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+    .filter-input {
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      padding: 7px 12px;
+      font-size: 0.9rem;
+      color: var(--text);
+      background: #fff;
+      outline: none;
+      transition: border-color .15s;
+    }
+    .filter-input:focus { border-color: var(--primary); }
+
+    .btn {
+      padding: 8px 18px;
+      border-radius: 8px;
+      border: none;
+      font-size: 0.88rem; font-weight: 600;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { opacity: .88; }
+    .btn-secondary { background: var(--primary-light); color: var(--primary); }
+    .btn-secondary:hover { background: #ddd5f7; }
+    .btn-accent { background: var(--accent); color: #fff; }
+    .btn-accent:hover { opacity: .88; }
+    .btn-outline {
+      background: #fff; color: var(--primary);
+      border: 1.5px solid var(--primary);
+    }
+    .btn-outline:hover { background: var(--primary-light); }
+    .btn-sm { padding: 5px 12px; font-size: 0.80rem; }
+    .btn-xs { padding: 3px 9px; font-size: 0.75rem; }
+
+    /* ── Results Summary ── */
+    .summary-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 10px;
+      margin-bottom: 16px;
+    }
+    .summary-bar .count-badge {
+      background: var(--primary-light);
+      color: var(--primary);
+      border-radius: 20px;
+      padding: 4px 14px;
+      font-size: 0.84rem; font-weight: 600;
+    }
+    .export-btns { display: flex; gap: 8px; }
+
+    /* ── School Cards ── */
+    .schools-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(480px, 1fr));
+      gap: 20px;
+    }
+
+    .school-card {
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      transition: box-shadow .2s, border-color .2s;
+    }
+    .school-card:hover { box-shadow: 0 4px 18px rgba(108,63,197,.12); }
+    .school-card.matched { border-color: var(--ok); }
+    .school-card.no-schedule { opacity: .7; }
+
+    .card-header {
+      background: linear-gradient(90deg, var(--primary-light) 0%, #f5f0fd 100%);
+      padding: 14px 18px;
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 10px;
+    }
+    .card-header .school-name {
+      font-size: 1rem; font-weight: 700; color: var(--primary);
+      flex: 1;
+    }
+    .dist-badge {
+      background: var(--primary);
+      color: #fff;
+      border-radius: 20px;
+      padding: 3px 12px;
+      font-size: 0.8rem; font-weight: 600;
+      white-space: nowrap;
+    }
+    .card-address {
+      font-size: 0.8rem; color: var(--muted);
+      padding: 0 18px 10px;
+      display: flex; align-items: center; gap: 6px;
+    }
+
+    /* ── Schedule Table ── */
+    .schedules-section { padding: 0 18px 14px; }
+    .schedules-section h3 {
+      font-size: 0.82rem; font-weight: 700;
+      color: var(--muted); text-transform: uppercase; letter-spacing: .05em;
+      margin-bottom: 10px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .no-schedule-msg {
+      font-size: 0.84rem; color: var(--muted); font-style: italic;
+      padding: 8px 0;
+    }
+
+    .schedule-table {
+      width: 100%; border-collapse: collapse;
+      font-size: 0.82rem;
+    }
+    .schedule-table th {
+      background: #f5f0fd;
+      padding: 6px 8px;
+      text-align: left;
+      font-weight: 600; color: var(--muted);
+      font-size: 0.75rem; text-transform: uppercase; letter-spacing: .04em;
+      border-bottom: 1px solid var(--border);
+    }
+    .schedule-table td {
+      padding: 7px 8px;
+      border-bottom: 1px solid #f0ebfa;
+    }
+    .schedule-table tr:last-child td { border-bottom: none; }
+
+    .day-tag {
+      display: inline-block;
+      border-radius: 4px;
+      padding: 2px 7px;
+      font-size: 0.75rem; font-weight: 600;
+    }
+    .day-lundi    { background: #dbeafe; color: #1d4ed8; }
+    .day-mardi    { background: #dcfce7; color: #15803d; }
+    .day-mercredi { background: #fef9c3; color: #854d0e; }
+    .day-jeudi    { background: #fce7f3; color: #9d174d; }
+    .day-vendredi { background: #ede9fe; color: #6d28d9; }
+    .day-samedi   { background: #ffedd5; color: #c2410c; }
+
+    .match-icon { color: var(--ok); font-size: 1rem; }
+    .nomatch-icon { color: var(--border); font-size: 1rem; }
+
+    .status-chip {
+      display: inline-block;
+      border-radius: 20px;
+      padding: 1px 10px;
+      font-size: 0.72rem; font-weight: 600;
+    }
+    .status-chip.ok { background: #dcfce7; color: #15803d; }
+    .status-chip.maybe { background: #fef9c3; color: #854d0e; }
+    .status-chip.no { background: #fee2e2; color: #b91c1c; }
+
+    .card-actions {
+      padding: 10px 18px 14px;
+      display: flex; gap: 8px; flex-wrap: wrap;
+      border-top: 1px solid var(--border);
+      background: #fcfaff;
+    }
+
+    /* ── Modal ── */
+    .modal-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(10,0,30,.45);
+      z-index: 100;
+      align-items: center; justify-content: center;
+      padding: 20px;
+    }
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: #fff;
+      border-radius: 16px;
+      max-width: 560px; width: 100%;
+      max-height: 90vh; overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0,0,20,.25);
+      animation: pop .2s ease;
+    }
+    @keyframes pop {
+      from { transform: scale(.94); opacity: 0; }
+      to   { transform: scale(1);   opacity: 1; }
+    }
+    .modal-header {
+      padding: 20px 24px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .modal-header h2 { font-size: 1.05rem; font-weight: 700; color: var(--primary); }
+    .modal-close {
+      background: none; border: none;
+      font-size: 1.4rem; cursor: pointer; color: var(--muted);
+      line-height: 1;
+    }
+    .modal-body { padding: 20px 24px; }
+    .modal-footer {
+      padding: 16px 24px;
+      border-top: 1px solid var(--border);
+      display: flex; justify-content: flex-end; gap: 10px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group.full { grid-column: 1 / -1; }
+    .form-group label {
+      font-size: 0.78rem; font-weight: 600;
+      color: var(--muted); text-transform: uppercase; letter-spacing: .04em;
+    }
+    .form-group select,
+    .form-group input[type=time],
+    .form-group input[type=number],
+    .form-group input[type=text],
+    .form-group textarea {
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 0.9rem; color: var(--text);
+      background: #fff; outline: none;
+      transition: border-color .15s;
+      font-family: inherit;
+    }
+    .form-group select:focus,
+    .form-group input:focus,
+    .form-group textarea:focus { border-color: var(--primary); }
+
+    /* ── Notes ── */
+    .notes-area {
+      padding: 0 18px 14px;
+    }
+    .notes-area label {
+      font-size: 0.78rem; font-weight: 600;
+      color: var(--muted); text-transform: uppercase; letter-spacing: .04em;
+      display: block; margin-bottom: 6px;
+    }
+    .notes-area textarea {
+      width: 100%;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 0.85rem;
+      color: var(--text);
+      resize: vertical;
+      font-family: inherit;
+      min-height: 56px;
+      outline: none;
+      transition: border-color .15s;
+    }
+    .notes-area textarea:focus { border-color: var(--primary); }
+
+    /* ── Contact status ── */
+    .contact-row {
+      padding: 0 18px 14px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .contact-row label { font-size: 0.84rem; font-weight: 500; }
+    .contact-row select {
+      border: 1.5px solid var(--border);
+      border-radius: 8px; padding: 4px 10px;
+      font-size: 0.84rem; outline: none;
+      color: var(--text);
+      transition: border-color .15s;
+    }
+    .contact-row select:focus { border-color: var(--primary); }
+
+    /* ── Print ── */
+    @media print {
+      header { background: #6c3fc5 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .panel, .summary-bar .export-btns, .card-actions,
+      .btn, .filter-row { display: none !important; }
+      .school-card { break-inside: avoid; page-break-inside: avoid; }
+      .schools-grid { grid-template-columns: 1fr 1fr; }
+      body { font-size: 12px; }
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 600px) {
+      .schools-grid { grid-template-columns: 1fr; }
+      .form-grid { grid-template-columns: 1fr; }
+      header { padding: 16px; }
+      header h1 { font-size: 1.3rem; }
+    }
+
+    .sort-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .sort-row label { font-size: 0.84rem; color: var(--muted); }
+    .sort-btn {
+      padding: 5px 14px;
+      border-radius: 20px;
+      border: 1.5px solid var(--border);
+      background: #fff;
+      font-size: 0.82rem; cursor: pointer;
+      transition: all .15s;
+    }
+    .sort-btn.active {
+      background: var(--primary-light);
+      border-color: var(--primary);
+      color: var(--primary); font-weight: 600;
+    }
+
+    .empty-state {
+      text-align: center; padding: 48px 24px;
+      color: var(--muted);
+    }
+    .empty-state .emoji { font-size: 2.5rem; margin-bottom: 12px; }
+    .empty-state p { font-size: 0.9rem; }
+
+    .gps-note {
+      font-size: 0.73rem; color: var(--warn);
+      font-style: italic; margin-left: 4px;
+    }
+
+    .coords-edit {
+      padding: 0 18px 6px;
+      font-size: 0.78rem; color: var(--muted);
+      display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    }
+    .coords-edit input {
+      width: 100px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 2px 7px; font-size: 0.78rem;
+      outline: none;
+    }
+    .coords-edit input:focus { border-color: var(--primary); }
+
+    .tab-bar {
+      display: flex; gap: 2px;
+      border-bottom: 2px solid var(--border);
+      margin-bottom: 20px;
+    }
+    .tab {
+      padding: 8px 18px;
+      border: none; background: none;
+      font-size: 0.88rem; font-weight: 500;
+      color: var(--muted); cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: all .15s;
+    }
+    .tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 700; }
+
+    .info-banner {
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-radius: 8px;
+      padding: 10px 16px;
+      font-size: 0.83rem;
+      color: #92400e;
+      margin-bottom: 20px;
+      display: flex; gap: 10px; align-items: flex-start;
+    }
+    .info-banner .icon { font-size: 1rem; flex-shrink: 0; margin-top: 1px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🩰 Écoles de Danse — Aix-les-Bains</h1>
+  <p>Recherche de cours pour enfants de 5 ans · Lundi, Mardi ou Vendredi après 16h30</p>
+  <div class="ref-info">
+    📍 Référence : École Saint-Joseph, Place du Rondeau, Aix-les-Bains
+  </div>
+</header>
+
+<div class="container">
+
+  <div class="info-banner">
+    <span class="icon">ℹ️</span>
+    <span>Les horaires des cours doivent être saisis manuellement (les écoles n'ont pas de site web commun).
+    Cliquez sur <strong>« + Ajouter un horaire »</strong> pour chaque école après avoir contacté l'établissement.
+    Les données sont sauvegardées localement dans votre navigateur.</span>
+  </div>
+
+  <!-- ── Filter Panel ── -->
+  <div class="panel">
+    <h2>🔍 Filtres de recherche</h2>
+    <div class="filter-row">
+      <div class="filter-group">
+        <label>Jours disponibles</label>
+        <div class="day-checks" id="dayChecks">
+          <label class="day-chip active"><input type="checkbox" value="lundi" checked> Lundi</label>
+          <label class="day-chip active"><input type="checkbox" value="mardi" checked> Mardi</label>
+          <label class="day-chip active"><input type="checkbox" value="vendredi" checked> Vendredi</label>
+          <label class="day-chip"><input type="checkbox" value="mercredi"> Mercredi</label>
+          <label class="day-chip"><input type="checkbox" value="jeudi"> Jeudi</label>
+          <label class="day-chip"><input type="checkbox" value="samedi"> Samedi</label>
+        </div>
+      </div>
+      <div class="filter-group">
+        <label>Heure minimum</label>
+        <input type="time" class="filter-input" id="minTime" value="16:30" style="width:110px">
+      </div>
+      <div class="filter-group">
+        <label>Âge de l'enfant</label>
+        <input type="number" class="filter-input" id="ageFilter" value="5" min="2" max="18" style="width:80px">
+      </div>
+      <div class="filter-group">
+        <label>Afficher</label>
+        <select class="filter-input" id="showFilter">
+          <option value="all">Toutes les écoles</option>
+          <option value="matching">Avec horaires correspondants</option>
+          <option value="scheduled">Avec horaires saisis</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label style="visibility:hidden">.</label>
+        <button class="btn btn-primary" onclick="applyFilters()">Appliquer</button>
+      </div>
+    </div>
+
+    <div class="sort-row" style="margin-top:14px;">
+      <label>Trier par :</label>
+      <button class="sort-btn active" id="sort-dist" onclick="setSort('distance')">📏 Distance</button>
+      <button class="sort-btn" id="sort-name" onclick="setSort('name')">🔤 Nom</button>
+      <button class="sort-btn" id="sort-match" onclick="setSort('match')">✅ Correspondance</button>
+    </div>
+  </div>
+
+  <!-- ── Summary bar ── -->
+  <div class="summary-bar">
+    <span id="resultCount" class="count-badge">6 écoles affichées</span>
+    <div class="export-btns">
+      <button class="btn btn-outline" onclick="exportCSV()">⬇️ Exporter CSV</button>
+      <button class="btn btn-outline" onclick="exportJSON()">⬇️ Exporter JSON</button>
+      <button class="btn btn-accent" onclick="window.print()">🖨️ Imprimer / PDF</button>
+    </div>
+  </div>
+
+  <!-- ── Schools grid ── -->
+  <div class="schools-grid" id="schoolsGrid"></div>
+
+</div>
+
+<!-- ── Add/Edit Schedule Modal ── -->
+<div class="modal-overlay" id="scheduleModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modalTitle">Ajouter un horaire</h2>
+      <button class="modal-close" onclick="closeModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Jour *</label>
+          <select id="fDay">
+            <option value="lundi">Lundi</option>
+            <option value="mardi">Mardi</option>
+            <option value="mercredi">Mercredi</option>
+            <option value="jeudi">Jeudi</option>
+            <option value="vendredi">Vendredi</option>
+            <option value="samedi">Samedi</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Type de cours *</label>
+          <select id="fType">
+            <option value="Éveil danse">Éveil danse</option>
+            <option value="Baby danse">Baby danse</option>
+            <option value="Initiation danse classique">Initiation danse classique</option>
+            <option value="Danse jazz / modern jazz">Danse jazz / modern jazz</option>
+            <option value="Hip-hop enfants">Hip-hop enfants</option>
+            <option value="Danse contemporaine">Danse contemporaine</option>
+            <option value="Danse créative">Danse créative</option>
+            <option value="Autre">Autre</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Heure début *</label>
+          <input type="time" id="fStart" value="16:30">
+        </div>
+        <div class="form-group">
+          <label>Heure fin</label>
+          <input type="time" id="fEnd" value="17:30">
+        </div>
+        <div class="form-group">
+          <label>Âge minimum</label>
+          <input type="number" id="fAgeMin" value="4" min="2" max="18">
+        </div>
+        <div class="form-group">
+          <label>Âge maximum</label>
+          <input type="number" id="fAgeMax" value="6" min="2" max="18">
+        </div>
+        <div class="form-group">
+          <label>Tarif (€/an)</label>
+          <input type="text" id="fPrice" placeholder="ex: 380 ou 30/mois">
+        </div>
+        <div class="form-group">
+          <label>Durée</label>
+          <input type="text" id="fDuration" placeholder="ex: 45 min">
+        </div>
+        <div class="form-group full">
+          <label>Notes / Informations complémentaires</label>
+          <textarea id="fNotes" rows="2" placeholder="Places disponibles, pré-inscriptions, etc."></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Annuler</button>
+      <button class="btn btn-primary" id="saveScheduleBtn" onclick="saveSchedule()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Coords Edit Modal ── -->
+<div class="modal-overlay" id="coordsModal">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header">
+      <h2>Modifier les coordonnées GPS</h2>
+      <button class="modal-close" onclick="document.getElementById('coordsModal').classList.remove('open')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:.84rem;color:var(--muted);margin-bottom:16px;">
+        Entrez les coordonnées précises (latitude, longitude) pour obtenir une distance exacte.
+        Vous pouvez les trouver en faisant un clic droit sur Google Maps.
+      </p>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Latitude</label>
+          <input type="text" id="cLat" placeholder="45.6995">
+        </div>
+        <div class="form-group">
+          <label>Longitude</label>
+          <input type="text" id="cLng" placeholder="5.9050">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="document.getElementById('coordsModal').classList.remove('open')">Annuler</button>
+      <button class="btn btn-primary" onclick="saveCoords()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ─────────────────────────────────────────────
+   DATA
+───────────────────────────────────────────── */
+const REFERENCE = {
+  name: "École Saint-Joseph",
+  address: "Place du Rondeau, 73100 Aix-les-Bains",
+  lat: 45.699417,
+  lng: 5.904397
+};
+
+// GPS coordinates are approximate (±200m) — user can update via "Modifier GPS"
+let schools = [
+  {
+    id: "academie",
+    name: "L'Académie",
+    address: "670 Boulevard Lepic, 73100 Aix-les-Bains",
+    lat: 45.7001,
+    lng: 5.8937,
+    coordsApprox: true,
+    phone: "",
+    website: "",
+    contact_status: "non_contacte",
+    notes: "",
+    schedules: []
+  },
+  {
+    id: "doriane",
+    name: "Doriane Danse Académie",
+    address: "670 Boulevard Lepic, 73100 Aix-les-Bains",
+    lat: 45.7001,
+    lng: 5.8937,
+    coordsApprox: true,
+    phone: "",
+    website: "",
+    contact_status: "non_contacte",
+    notes: "",
+    schedules: []
+  },
+  {
+    id: "accordanses",
+    name: "Accor'Danses",
+    address: "40 Rue du Professeur Jean Bernard, 73100 Aix-les-Bains",
+    lat: 45.6872,
+    lng: 5.9183,
+    coordsApprox: true,
+    phone: "",
+    website: "",
+    contact_status: "non_contacte",
+    notes: "",
+    schedules: []
+  },
+  {
+    id: "verriere",
+    name: "Espace La Verrière",
+    address: "8 Avenue Charles de Gaulle, 73100 Aix-les-Bains",
+    lat: 45.6853,
+    lng: 5.9215,
+    coordsApprox: true,
+    phone: "",
+    website: "",
+    contact_status: "non_contacte",
+    notes: "",
+    schedules: []
+  },
+  {
+    id: "boutron",
+    name: "Reine Boutron",
+    address: "31 Avenue Liberté, 73100 Aix-les-Bains",
+    lat: 45.6935,
+    lng: 5.9108,
+    coordsApprox: true,
+    phone: "",
+    website: "",
+    contact_status: "non_contacte",
+    notes: "",
+    schedules: []
+  },
+  {
+    id: "mamborock",
+    name: "Mambo Rock",
+    address: "10 Rue du Docteur Jean Paillot, 73100 Aix-les-Bains",
+    lat: 45.6879,
+    lng: 5.9097,
+    coordsApprox: true,
+    phone: "",
+    website: "",
+    contact_status: "non_contacte",
+    notes: "",
+    schedules: []
+  }
+];
+
+/* ─────────────────────────────────────────────
+   PERSISTENCE
+───────────────────────────────────────────── */
+function save() {
+  localStorage.setItem('dance_schools_aix', JSON.stringify(schools));
+}
+
+function load() {
+  const stored = localStorage.getItem('dance_schools_aix');
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored);
+      // Merge stored data into defaults (preserve new fields added in updates)
+      parsed.forEach(s => {
+        const idx = schools.findIndex(x => x.id === s.id);
+        if (idx !== -1) schools[idx] = { ...schools[idx], ...s };
+      });
+    } catch(e) { console.warn('Failed to load saved data', e); }
+  }
+}
+
+/* ─────────────────────────────────────────────
+   DISTANCE (Haversine)
+───────────────────────────────────────────── */
+function haversine(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 +
+            Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) *
+            Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function distKm(school) {
+  return haversine(REFERENCE.lat, REFERENCE.lng, school.lat, school.lng);
+}
+
+/* ─────────────────────────────────────────────
+   FILTERS
+───────────────────────────────────────────── */
+let currentSort = 'distance';
+let activeFilters = {
+  days: ['lundi','mardi','vendredi'],
+  minTime: '16:30',
+  age: 5,
+  show: 'all'
+};
+
+function getSelectedDays() {
+  const checkboxes = document.querySelectorAll('#dayChecks input[type=checkbox]');
+  return Array.from(checkboxes).filter(c => c.checked).map(c => c.value);
+}
+
+function applyFilters() {
+  activeFilters = {
+    days: getSelectedDays(),
+    minTime: document.getElementById('minTime').value,
+    age: parseInt(document.getElementById('ageFilter').value) || 5,
+    show: document.getElementById('showFilter').value
+  };
+  renderAll();
+}
+
+function scheduleMatches(sched, filters) {
+  if (!filters.days.includes(sched.day)) return false;
+  if (sched.time_start < filters.minTime) return false;
+  if (sched.age_min !== undefined && filters.age < sched.age_min) return false;
+  if (sched.age_max !== undefined && filters.age > sched.age_max) return false;
+  return true;
+}
+
+function schoolMatchCount(school, filters) {
+  return school.schedules.filter(s => scheduleMatches(s, filters)).length;
+}
+
+function schoolVisible(school, filters) {
+  if (filters.show === 'matching') return schoolMatchCount(school, filters) > 0;
+  if (filters.show === 'scheduled') return school.schedules.length > 0;
+  return true;
+}
+
+/* ─────────────────────────────────────────────
+   SORTING
+───────────────────────────────────────────── */
+function setSort(key) {
+  currentSort = key;
+  document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('sort-' + (key === 'distance' ? 'dist' : key)).classList.add('active');
+  renderAll();
+}
+
+function sortedSchools(list, filters) {
+  const copy = [...list];
+  if (currentSort === 'distance') {
+    copy.sort((a,b) => distKm(a) - distKm(b));
+  } else if (currentSort === 'name') {
+    copy.sort((a,b) => a.name.localeCompare(b.name, 'fr'));
+  } else if (currentSort === 'match') {
+    copy.sort((a,b) => schoolMatchCount(b, filters) - schoolMatchCount(a, filters));
+  }
+  return copy;
+}
+
+/* ─────────────────────────────────────────────
+   RENDER
+───────────────────────────────────────────── */
+const DAY_LABELS = {
+  lundi:'Lun', mardi:'Mar', mercredi:'Mer',
+  jeudi:'Jeu', vendredi:'Ven', samedi:'Sam'
+};
+const CONTACT_LABELS = {
+  non_contacte: 'Non contacté',
+  en_cours: 'En attente de réponse',
+  confirme: 'Informations confirmées',
+  inscrit: 'Inscrit ✓',
+  pas_de_cours: 'Pas de cours adapté'
+};
+const CONTACT_COLORS = {
+  non_contacte: '', en_cours: 'maybe',
+  confirme: 'ok', inscrit: 'ok', pas_de_cours: 'no'
+};
+
+function renderAll() {
+  const grid = document.getElementById('schoolsGrid');
+  const visible = schools.filter(s => schoolVisible(s, activeFilters));
+  const sorted = sortedSchools(visible, activeFilters);
+
+  document.getElementById('resultCount').textContent =
+    visible.length + ' école' + (visible.length > 1 ? 's' : '') + ' affichée' + (visible.length > 1 ? 's' : '');
+
+  if (sorted.length === 0) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
+      <div class="emoji">🔍</div>
+      <p>Aucune école ne correspond aux filtres actuels.<br>
+         Élargissez les critères ou saisissez les horaires des écoles.</p>
+    </div>`;
+    return;
+  }
+
+  grid.innerHTML = sorted.map(s => renderCard(s)).join('');
+}
+
+function renderCard(school) {
+  const dist = distKm(school);
+  const matchCount = schoolMatchCount(school, activeFilters);
+  const isMatched = matchCount > 0;
+  const hasSchedules = school.schedules.length > 0;
+
+  const scheduleRows = school.schedules.map((sched, i) => {
+    const match = scheduleMatches(sched, activeFilters);
+    return `<tr>
+      <td><span class="day-tag day-${sched.day}">${DAY_LABELS[sched.day] || sched.day}</span></td>
+      <td>${sched.time_start}${sched.time_end ? ' – ' + sched.time_end : ''}</td>
+      <td>${sched.type}</td>
+      <td>${sched.age_min ?? '?'}–${sched.age_max ?? '?'} ans</td>
+      <td>${sched.price || '—'}</td>
+      <td>${match ? '<span class="match-icon">✅</span>' : '<span class="nomatch-icon">○</span>'}</td>
+      <td>
+        <button class="btn btn-xs btn-secondary" onclick="editSchedule('${school.id}',${i})">✏️</button>
+        <button class="btn btn-xs" style="background:#fee2e2;color:#b91c1c;" onclick="deleteSchedule('${school.id}',${i})">✕</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  const statusClass = CONTACT_COLORS[school.contact_status] || '';
+  const statusLabel = CONTACT_LABELS[school.contact_status] || school.contact_status;
+
+  const approxNote = school.coordsApprox
+    ? `<span class="gps-note">(GPS approx.)</span>` : '';
+
+  return `<div class="school-card${isMatched ? ' matched' : ''}${!hasSchedules ? ' no-schedule' : ''}" id="card-${school.id}">
+    <div class="card-header">
+      <div>
+        <div class="school-name">${school.name}</div>
+        ${matchCount > 0 ? `<div style="font-size:.75rem;color:var(--ok);font-weight:600;margin-top:2px;">✅ ${matchCount} créneau${matchCount > 1 ? 'x' : ''} correspondant${matchCount > 1 ? 's' : ''}</div>` : ''}
+      </div>
+      <div class="dist-badge">${dist.toFixed(2)} km ${approxNote}</div>
+    </div>
+    <div class="card-address">
+      📍 ${school.address}
+      ${school.phone ? `&nbsp;·&nbsp; 📞 ${school.phone}` : ''}
+    </div>
+
+    <div class="coords-edit">
+      <span>GPS :</span>
+      <input id="lat-${school.id}" type="text" value="${school.lat}" style="width:90px" placeholder="lat">
+      <input id="lng-${school.id}" type="text" value="${school.lng}" style="width:90px" placeholder="lng">
+      <button class="btn btn-xs btn-secondary" onclick="updateCoords('${school.id}')">Recalculer</button>
+    </div>
+
+    <div class="contact-row">
+      <label>Statut :</label>
+      <select onchange="updateContact('${school.id}',this.value)">
+        ${Object.keys(CONTACT_LABELS).map(k =>
+          `<option value="${k}" ${school.contact_status===k?'selected':''}>${CONTACT_LABELS[k]}</option>`
+        ).join('')}
+      </select>
+      ${statusClass ? `<span class="status-chip ${statusClass}">${statusLabel}</span>` : ''}
+    </div>
+
+    <div class="schedules-section">
+      <h3>🕐 Horaires
+        ${hasSchedules ? `<span style="background:var(--primary-light);color:var(--primary);border-radius:10px;padding:1px 8px;font-size:.72rem;">${school.schedules.length} créneau${school.schedules.length>1?'x':''}</span>` : ''}
+      </h3>
+      ${hasSchedules ? `
+        <table class="schedule-table">
+          <thead>
+            <tr>
+              <th>Jour</th><th>Horaire</th><th>Cours</th>
+              <th>Âge</th><th>Tarif</th><th>✓</th><th></th>
+            </tr>
+          </thead>
+          <tbody>${scheduleRows}</tbody>
+        </table>
+      ` : '<div class="no-schedule-msg">Aucun horaire saisi — contactez l\'école pour obtenir les informations.</div>'}
+    </div>
+
+    <div class="notes-area">
+      <label>Notes</label>
+      <textarea rows="2" placeholder="Informations recueillies, observations…"
+        onblur="updateNotes('${school.id}',this.value)">${school.notes || ''}</textarea>
+    </div>
+
+    <div class="card-actions">
+      <button class="btn btn-primary btn-sm" onclick="openAddSchedule('${school.id}')">+ Ajouter un horaire</button>
+      <button class="btn btn-outline btn-sm" onclick="openMapsDir('${school.id}')">🗺️ Itinéraire</button>
+      ${school.phone ? `<button class="btn btn-secondary btn-sm" onclick="window.location='tel:${school.phone}'">📞 Appeler</button>` : ''}
+    </div>
+  </div>`;
+}
+
+/* ─────────────────────────────────────────────
+   SCHEDULE CRUD
+───────────────────────────────────────────── */
+let editingSchoolId = null;
+let editingScheduleIdx = null;
+
+function openAddSchedule(schoolId) {
+  editingSchoolId = schoolId;
+  editingScheduleIdx = null;
+  document.getElementById('modalTitle').textContent = 'Ajouter un horaire';
+  document.getElementById('saveScheduleBtn').textContent = 'Ajouter';
+  // Reset fields
+  document.getElementById('fDay').value = 'lundi';
+  document.getElementById('fType').value = 'Éveil danse';
+  document.getElementById('fStart').value = '16:30';
+  document.getElementById('fEnd').value = '17:30';
+  document.getElementById('fAgeMin').value = '4';
+  document.getElementById('fAgeMax').value = '6';
+  document.getElementById('fPrice').value = '';
+  document.getElementById('fDuration').value = '';
+  document.getElementById('fNotes').value = '';
+  document.getElementById('scheduleModal').classList.add('open');
+}
+
+function editSchedule(schoolId, idx) {
+  editingSchoolId = schoolId;
+  editingScheduleIdx = idx;
+  const school = schools.find(s => s.id === schoolId);
+  const sched = school.schedules[idx];
+  document.getElementById('modalTitle').textContent = 'Modifier le créneau';
+  document.getElementById('saveScheduleBtn').textContent = 'Enregistrer';
+  document.getElementById('fDay').value = sched.day;
+  document.getElementById('fType').value = sched.type;
+  document.getElementById('fStart').value = sched.time_start;
+  document.getElementById('fEnd').value = sched.time_end || '';
+  document.getElementById('fAgeMin').value = sched.age_min ?? 4;
+  document.getElementById('fAgeMax').value = sched.age_max ?? 6;
+  document.getElementById('fPrice').value = sched.price || '';
+  document.getElementById('fDuration').value = sched.duration || '';
+  document.getElementById('fNotes').value = sched.notes || '';
+  document.getElementById('scheduleModal').classList.add('open');
+}
+
+function saveSchedule() {
+  const sched = {
+    day:        document.getElementById('fDay').value,
+    type:       document.getElementById('fType').value,
+    time_start: document.getElementById('fStart').value,
+    time_end:   document.getElementById('fEnd').value,
+    age_min:    parseInt(document.getElementById('fAgeMin').value),
+    age_max:    parseInt(document.getElementById('fAgeMax').value),
+    price:      document.getElementById('fPrice').value.trim(),
+    duration:   document.getElementById('fDuration').value.trim(),
+    notes:      document.getElementById('fNotes').value.trim()
+  };
+  if (!sched.time_start) { alert('Veuillez saisir une heure de début.'); return; }
+
+  const school = schools.find(s => s.id === editingSchoolId);
+  if (editingScheduleIdx !== null) {
+    school.schedules[editingScheduleIdx] = sched;
+  } else {
+    school.schedules.push(sched);
+  }
+  save();
+  closeModal();
+  renderAll();
+}
+
+function deleteSchedule(schoolId, idx) {
+  if (!confirm('Supprimer ce créneau ?')) return;
+  const school = schools.find(s => s.id === schoolId);
+  school.schedules.splice(idx, 1);
+  save();
+  renderAll();
+}
+
+function closeModal() {
+  document.getElementById('scheduleModal').classList.remove('open');
+}
+
+/* ─────────────────────────────────────────────
+   COORDINATE UPDATE
+───────────────────────────────────────────── */
+function updateCoords(schoolId) {
+  const school = schools.find(s => s.id === schoolId);
+  const lat = parseFloat(document.getElementById('lat-'+schoolId).value);
+  const lng = parseFloat(document.getElementById('lng-'+schoolId).value);
+  if (isNaN(lat) || isNaN(lng)) { alert('Coordonnées invalides.'); return; }
+  school.lat = lat;
+  school.lng = lng;
+  school.coordsApprox = false;
+  save();
+  renderAll();
+}
+
+/* ─────────────────────────────────────────────
+   CONTACT & NOTES
+───────────────────────────────────────────── */
+function updateContact(schoolId, value) {
+  const school = schools.find(s => s.id === schoolId);
+  school.contact_status = value;
+  save();
+  renderAll();
+}
+
+function updateNotes(schoolId, value) {
+  const school = schools.find(s => s.id === schoolId);
+  school.notes = value;
+  save();
+}
+
+/* ─────────────────────────────────────────────
+   MAPS
+───────────────────────────────────────────── */
+function openMapsDir(schoolId) {
+  const school = schools.find(s => s.id === schoolId);
+  const dest = encodeURIComponent(school.address);
+  const origin = encodeURIComponent(REFERENCE.address);
+  window.open(`https://www.google.com/maps/dir/${origin}/${dest}`, '_blank');
+}
+
+/* ─────────────────────────────────────────────
+   DAY CHIP TOGGLE
+───────────────────────────────────────────── */
+document.querySelectorAll('.day-chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    const cb = chip.querySelector('input');
+    // Toggle is handled by browser; just update visual
+    setTimeout(() => {
+      chip.classList.toggle('active', cb.checked);
+    }, 0);
+  });
+});
+
+/* ─────────────────────────────────────────────
+   EXPORT CSV
+───────────────────────────────────────────── */
+function exportCSV() {
+  const rows = [
+    ['École','Adresse','Distance (km)','GPS approx','Statut contact',
+     'Jour','Heure début','Heure fin','Type de cours','Âge min','Âge max',
+     'Tarif','Durée','Correspond aux critères','Notes école','Notes cours']
+  ];
+
+  const sorted = sortedSchools(schools, activeFilters);
+  sorted.forEach(school => {
+    const dist = distKm(school).toFixed(3);
+    if (school.schedules.length === 0) {
+      rows.push([
+        school.name, school.address, dist,
+        school.coordsApprox ? 'Oui' : 'Non',
+        CONTACT_LABELS[school.contact_status] || school.contact_status,
+        '','','','','','','','','',
+        school.notes || '', ''
+      ]);
+    } else {
+      school.schedules.forEach(sched => {
+        const match = scheduleMatches(sched, activeFilters);
+        rows.push([
+          school.name, school.address, dist,
+          school.coordsApprox ? 'Oui' : 'Non',
+          CONTACT_LABELS[school.contact_status] || school.contact_status,
+          sched.day, sched.time_start, sched.time_end || '',
+          sched.type,
+          sched.age_min ?? '', sched.age_max ?? '',
+          sched.price || '', sched.duration || '',
+          match ? 'Oui' : 'Non',
+          school.notes || '', sched.notes || ''
+        ]);
+      });
+    }
+  });
+
+  const csv = rows.map(r =>
+    r.map(cell => '"' + String(cell).replace(/"/g, '""') + '"').join(',')
+  ).join('\n');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'ecoles_danse_aix_les_bains.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ─────────────────────────────────────────────
+   EXPORT JSON
+───────────────────────────────────────────── */
+function exportJSON() {
+  const data = {
+    generated: new Date().toISOString(),
+    reference: REFERENCE,
+    filters: activeFilters,
+    schools: schools.map(s => ({
+      ...s,
+      distance_km: parseFloat(distKm(s).toFixed(3)),
+      matching_schedules: s.schedules.filter(sc => scheduleMatches(sc, activeFilters)).length
+    }))
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'ecoles_danse_aix_les_bains.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ─────────────────────────────────────────────
+   INIT
+───────────────────────────────────────────── */
+load();
+renderAll();
+
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) {
+      overlay.classList.remove('open');
+    }
+  });
+});
+</script>
+</body>
+</html>
