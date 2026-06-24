@@ -2,245 +2,269 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>Voile PH — Visualiseur Code_Aster</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 <style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{background:#0d1117;color:#e6edf3;font-family:'Segoe UI',sans-serif;overflow:hidden;height:100vh}
-#app{display:flex;height:100vh}
-#panel{width:270px;min-width:270px;background:#161b22;border-right:1px solid #30363d;display:flex;flex-direction:column;overflow-y:auto;z-index:20}
-#viewport{flex:1;position:relative}
-#viewport canvas{display:block}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;background:#0d1117;color:#e6edf3;font-family:'Segoe UI',sans-serif;touch-action:none}
 
-.logo{padding:14px 16px;border-bottom:1px solid #21262d}
-.logo h1{font-size:13px;font-weight:700;color:#e6edf3;letter-spacing:.02em}
-.logo p{font-size:10px;color:#8b949e;margin-top:2px}
+/* ── Layout ── */
+#app{display:flex;width:100vw;height:100vh}
+#panel{
+  width:230px;min-width:230px;max-width:230px;
+  background:#161b22;border-right:1px solid #30363d;
+  display:flex;flex-direction:column;overflow-y:auto;
+  z-index:20;flex-shrink:0;
+}
+#viewport{
+  position:relative;
+  flex:1;overflow:hidden;
+  /* canvas fill est géré en JS */
+}
+#viewport canvas{
+  position:absolute;top:0;left:0;display:block;
+  touch-action:none; /* laisser OrbitControls gérer le touch */
+}
 
-.sec{padding:10px 14px;border-bottom:1px solid #21262d}
-.sec-title{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#8b949e;margin-bottom:8px}
+/* ── Panel UI ── */
+.logo{padding:10px 12px;border-bottom:1px solid #21262d}
+.logo h1{font-size:12px;font-weight:700;color:#e6edf3}
+.logo p{font-size:9px;color:#8b949e;margin-top:2px}
 
-.btn{display:flex;align-items:center;gap:7px;background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:6px 9px;border-radius:5px;cursor:pointer;font-size:11px;width:100%;margin-bottom:3px;transition:all .12s}
-.btn:hover{background:#21262d;border-color:#58a6ff55}
+.sec{padding:8px 10px;border-bottom:1px solid #21262d}
+.sec-title{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#8b949e;margin-bottom:6px}
+
+.btn{display:flex;align-items:center;gap:5px;background:#0d1117;border:1px solid #30363d;
+  color:#c9d1d9;padding:5px 7px;border-radius:4px;cursor:pointer;font-size:10px;
+  width:100%;margin-bottom:2px;text-align:left;line-height:1.3}
+.btn:hover,.btn:active{background:#21262d;border-color:#58a6ff88}
 .btn.active{background:#1f6feb22;border-color:#388bfd;color:#79c0ff}
-.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
 
-.row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
-.row label{font-size:10px;color:#8b949e;min-width:72px}
+.row{display:flex;align-items:center;gap:6px;margin-bottom:5px}
+.row label{font-size:9px;color:#8b949e;min-width:60px;flex-shrink:0}
 input[type=range]{flex:1;-webkit-appearance:none;height:3px;background:#21262d;border-radius:2px;outline:none;accent-color:#58a6ff}
-input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;background:#58a6ff;border-radius:50%;cursor:pointer}
-.val{font-size:10px;color:#58a6ff;min-width:34px;text-align:right}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;background:#58a6ff;border-radius:50%;cursor:pointer}
+.val{font-size:9px;color:#58a6ff;min-width:30px;text-align:right}
 
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:4px}
-.stat{background:#0d1117;border:1px solid #21262d;border-radius:4px;padding:5px 8px}
-.stat-l{font-size:9px;color:#8b949e}
-.stat-v{font-size:12px;font-weight:700;color:#58a6ff;margin-top:1px}
+select{flex:1;background:#0d1117;border:1px solid #30363d;color:#c9d1d9;
+  padding:3px 4px;border-radius:3px;font-size:10px;outline:none}
 
-#warn{display:none;background:#3d1a1a;border:1px solid #f85149;border-radius:5px;padding:6px 10px;font-size:10px;color:#f85149;margin-top:6px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:3px;margin-top:3px}
+.stat{background:#0d1117;border:1px solid #21262d;border-radius:3px;padding:4px 6px}
+.stat-l{font-size:8px;color:#8b949e}
+.stat-v{font-size:11px;font-weight:700;color:#58a6ff;margin-top:1px}
 
-.hint{padding:8px 14px;font-size:9px;color:#484f58;line-height:1.6}
+#warn{display:none;background:#3d1a1a;border:1px solid #f85149;border-radius:4px;
+  padding:5px 8px;font-size:9px;color:#f85149;margin-top:4px}
 
-/* Colorbar overlay */
-#cb{position:absolute;right:16px;top:50%;transform:translateY(-50%);z-index:10;pointer-events:none;display:flex;align-items:stretch;gap:6px}
-#cb-bar{width:14px;height:180px;border-radius:3px;border:1px solid #30363d}
-#cb-labels{display:flex;flex-direction:column;justify-content:space-between;padding:0}
-#cb-labels span{font-size:9px;color:#8b949e}
-#cb-title{position:absolute;right:16px;bottom:calc(50% + 100px);transform:none;font-size:9px;color:#8b949e;writing-mode:horizontal-tb}
+.hint{padding:6px 10px;font-size:8px;color:#484f58;line-height:1.6}
 
-/* Info bar */
-#info{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);background:rgba(22,27,34,.92);border:1px solid #30363d;border-radius:6px;padding:5px 12px;font-size:10px;color:#8b949e;z-index:10;white-space:nowrap}
+/* ── Overlay colorbar ── */
+#cb{position:absolute;right:10px;top:50%;transform:translateY(-50%);
+  z-index:10;pointer-events:none;display:flex;align-items:stretch;gap:5px}
+#cb-bar{width:12px;height:160px;border-radius:3px;border:1px solid #30363d}
+#cb-labels{display:flex;flex-direction:column;justify-content:space-between}
+#cb-labels span{font-size:8px;color:#8b949e}
+#cb-unit{position:absolute;right:10px;font-size:8px;color:#8b949e;
+  top:calc(50% - 92px);width:12px;text-align:center;line-height:1.1}
 
-/* Axes legend */
-#axes-legend{position:absolute;left:12px;bottom:36px;z-index:10;font-size:9px;color:#8b949e}
-#axes-legend span{display:inline-block;margin-right:8px}
-.ax-x{color:#f47067}
-.ax-y{color:#57ab5a}
-.ax-z{color:#79c0ff}
+/* ── Info bar ── */
+#info{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);
+  background:rgba(22,27,34,.9);border:1px solid #30363d;border-radius:5px;
+  padding:4px 10px;font-size:9px;color:#8b949e;z-index:10;white-space:nowrap}
+
+/* ── Erreur WebGL ── */
+#gl-error{display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  background:#3d1a1a;border:1px solid #f85149;border-radius:8px;
+  padding:20px;color:#f85149;text-align:center;z-index:30;font-size:13px}
 </style>
 </head>
 <body>
 <div id="app">
 
-<!-- ═══════════ PANEL ═══════════ -->
+<!-- ══════════ PANEL ══════════ -->
 <div id="panel">
   <div class="logo">
-    <h1>⬡ Voile PH 6 × 6 m</h1>
+    <h1>⬡ Voile PH 6×6 m</h1>
     <p>Code_Aster · Paraboloïde Hyperbolique</p>
   </div>
 
   <div class="sec">
     <div class="sec-title">Cas de charge</div>
-    <button class="btn active" data-case="G0"><span class="dot" style="background:#3fb950"></span>Précontrainte seule (G₀)</button>
-    <button class="btn" data-case="G"><span class="dot" style="background:#e3b341"></span>G₀ + Poids propre (G)</button>
-    <button class="btn" data-case="WP"><span class="dot" style="background:#f0883e"></span>G₀ + G + Vent ▼ pression</button>
-    <button class="btn" data-case="WS"><span class="dot" style="background:#79c0ff"></span>G₀ + G + Vent ▲ succion</button>
-    <button class="btn" data-case="SN"><span class="dot" style="background:#a5d6ff"></span>G₀ + G + Neige</button>
-    <button class="btn" data-case="ELU1"><span class="dot" style="background:#f85149"></span>ELU1 : 1.35G + 1.50Vent▼</button>
-    <button class="btn" data-case="ELU2"><span class="dot" style="background:#ff7b72"></span>ELU2 : 1.35G + 1.50Vent▲</button>
+    <button class="btn active" data-case="G0"><span class="dot" style="background:#3fb950"></span>Précontrainte (G₀)</button>
+    <button class="btn" data-case="G"><span class="dot" style="background:#e3b341"></span>G₀ + Poids propre</button>
+    <button class="btn" data-case="WP"><span class="dot" style="background:#f0883e"></span>G₀+G + Vent▼ pression</button>
+    <button class="btn" data-case="WS"><span class="dot" style="background:#79c0ff"></span>G₀+G + Vent▲ succion</button>
+    <button class="btn" data-case="SN"><span class="dot" style="background:#a5d6ff"></span>G₀+G + Neige</button>
+    <button class="btn" data-case="ELU1"><span class="dot" style="background:#f85149"></span>ELU1 : 1.35G+1.50W▼</button>
+    <button class="btn" data-case="ELU2"><span class="dot" style="background:#ff7b72"></span>ELU2 : 1.35G+1.50W▲</button>
   </div>
 
   <div class="sec">
     <div class="sec-title">Résultat visualisé</div>
-    <button class="btn active" data-field="Uz">Déplacement U<sub>z</sub> (mm)</button>
+    <button class="btn active" data-field="Uz">Déplacement Uz (mm)</button>
     <button class="btn" data-field="Umag">Déplacement |U| (mm)</button>
-    <button class="btn" data-field="Nxx">Effort N<sub>xx</sub> chaîne (N/mm)</button>
-    <button class="btn" data-field="Nyy">Effort N<sub>yy</sub> trame (N/mm)</button>
-    <button class="btn" data-field="Nmin">N<sub>min</sub> — vérif. absence de plis</button>
-    <div id="warn">⚠ Plissement détecté — N<sub>min</sub> &lt; 0 !</div>
+    <button class="btn" data-field="Nxx">Nxx chaîne (N/mm)</button>
+    <button class="btn" data-field="Nyy">Nyy trame (N/mm)</button>
+    <button class="btn" data-field="Nmin">Nmin — vérif. plis</button>
+    <div id="warn">⚠ Plissement — Nmin &lt; 0 !</div>
   </div>
 
   <div class="sec">
-    <div class="sec-title">Paramètres affichage</div>
+    <div class="sec-title">Affichage</div>
     <div class="row">
-      <label>Déformation ×</label>
+      <label>Déform ×</label>
       <input type="range" id="sl-def" min="1" max="100" value="25">
       <span class="val" id="vl-def">×25</span>
     </div>
     <div class="row">
-      <label>Transparence</label>
+      <label>Opacité</label>
       <input type="range" id="sl-op" min="20" max="100" value="88">
       <span class="val" id="vl-op">88%</span>
     </div>
     <div class="row">
       <label>Colormap</label>
-      <select id="sel-cmap" style="flex:1;background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:3px 5px;border-radius:4px;font-size:11px">
-        <option value="jet">Jet (arc-en-ciel)</option>
+      <select id="sel-cmap">
+        <option value="jet">Jet</option>
         <option value="viridis">Viridis</option>
-        <option value="coolwarm">Cool → Warm</option>
-        <option value="gray">Niveaux de gris</option>
+        <option value="coolwarm">Cool→Warm</option>
+        <option value="gray">Gris</option>
       </select>
     </div>
-  </div>
-
-  <div class="sec">
-    <div class="sec-title">Vue</div>
-    <button class="btn" id="btn-wire">☰ Wireframe maillage</button>
+    <button class="btn" id="btn-wire" style="margin-top:4px">☰ Wireframe</button>
     <button class="btn" id="btn-cables">⊸ Câbles &amp; Mâts</button>
-    <button class="btn" id="btn-ground">▭ Plan de sol</button>
-    <button class="btn" id="btn-reset">↺ Vue par défaut</button>
+    <button class="btn" id="btn-reset">↺ Vue défaut</button>
   </div>
 
   <div class="sec">
     <div class="sec-title">Valeurs extrêmes</div>
     <div class="grid2">
-      <div class="stat"><div class="stat-l">Max champ</div><div class="stat-v" id="sv-max">—</div></div>
-      <div class="stat"><div class="stat-l">Min champ</div><div class="stat-v" id="sv-min">—</div></div>
-      <div class="stat"><div class="stat-l">U<sub>z,max</sub> mm</div><div class="stat-v" id="sv-uz">—</div></div>
-      <div class="stat"><div class="stat-l">N<sub>min</sub> N/mm</div><div class="stat-v" id="sv-nm">—</div></div>
+      <div class="stat"><div class="stat-l">Max</div><div class="stat-v" id="sv-max">—</div></div>
+      <div class="stat"><div class="stat-l">Min</div><div class="stat-v" id="sv-min">—</div></div>
+      <div class="stat"><div class="stat-l">Uz max mm</div><div class="stat-v" id="sv-uz">—</div></div>
+      <div class="stat"><div class="stat-l">Nmin N/mm</div><div class="stat-v" id="sv-nm">—</div></div>
     </div>
   </div>
 
   <div class="hint">
-    🖱 Glisser : rotation<br>
-    🖱 Clic droit : déplacer<br>
+    👆 1 doigt : rotation<br>
+    ✌ 2 doigts : zoom/pan<br>
     🖱 Molette : zoom<br>
-    Touches 1-7 : cas de charge<br>
+    Touches 1-7 : cas charge<br>
     W : wireframe
   </div>
 </div>
 
-<!-- ═══════════ VIEWPORT ═══════════ -->
+<!-- ══════════ VIEWPORT ══════════ -->
 <div id="viewport">
-  <!-- Colorbar -->
   <div id="cb">
-    <canvas id="cb-bar" width="14" height="180"></canvas>
+    <canvas id="cb-bar" width="12" height="160"></canvas>
     <div id="cb-labels">
-      <span id="cb-hi">0.0</span>
-      <span id="cb-mid">0.0</span>
-      <span id="cb-lo">0.0</span>
+      <span id="cb-hi">—</span>
+      <span id="cb-mid">—</span>
+      <span id="cb-lo">—</span>
     </div>
   </div>
-  <div id="cb-title">N/mm</div>
-
-  <div id="info">Rotation · Pan · Zoom — Résultats représentatifs d'un calcul Code_Aster</div>
-  <div id="axes-legend">
-    <span class="ax-x">■ X chaîne</span>
-    <span class="ax-y">■ Y trame</span>
-    <span class="ax-z">■ Z vertical</span>
+  <div id="cb-unit">mm</div>
+  <div id="info">Pincer/glisser pour naviguer · Résultats représentatifs Code_Aster</div>
+  <div id="gl-error">
+    <div style="font-size:24px;margin-bottom:8px">⚠</div>
+    WebGL non disponible<br>
+    <small style="color:#8b949e">Vérifiez les paramètres du navigateur</small>
   </div>
 </div>
 
 </div><!-- #app -->
 
 <script>
-// ═══════════════════════════════════════════════════════════════════
-//  PARAMÈTRES (identiques à parametres.py)
-// ═══════════════════════════════════════════════════════════════════
-const LX=6000, LY=6000;
-const ZA=3500, ZB=2000, ZC=3500, ZD=2000;
-const HMAT=4000;
-const NX=24, NY=24;
+// ═══════════════════════════════════════════════════
+//  PARAMÈTRES (mêmes que parametres.py, unité = mm)
+// ═══════════════════════════════════════════════════
+const LX=6000,LY=6000,ZA=3500,ZB=2000,ZC=3500,ZD=2000,HMAT=4000;
+const NX=20,NY=20; // résolution réduite pour mobile
 
 // Équation du paraboloïde hyperbolique
 function SZ(x,y){
   return ZA+(ZB-ZA)*(x/LX)+(ZD-ZA)*(y/LY)+(ZA-ZB-ZD+ZC)*(x/LX)*(y/LY);
 }
 
-// Coord modèle (X=chaîne, Y=trame, Z=haut) → Three.js (Y-up)
-function v3(mx,my,mz){ return new THREE.Vector3(mx, mz, my); }
-function vSurf(x,y){ return v3(x, y, SZ(x,y)); }
+// Système Three.js Y-up : (modelX, modelY, modelZ) → (X, modelZ, Y)
+function v3(mx,my,mz){return new THREE.Vector3(mx,mz,my);}
+function vS(x,y){return v3(x,y,SZ(x,y));}
 
-// ═══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
 //  RÉSULTATS SYNTHÉTIQUES REPRÉSENTATIFS
-// ═══════════════════════════════════════════════════════════════════
-const CASES = {
-  G0: { uz:0,    nxx0:3.0,  nyy0:3.0,  label:'Précontrainte'},
-  G:  { uz:-8,   nxx0:3.15, nyy0:3.15, label:'G₀+G'},
-  WP: { uz:-62,  nxx0:13.5, nyy0:16.8, label:'Vent pression'},
-  WS: { uz:88,   nxx0:6.8,  nyy0:4.2,  label:'Vent succion'},
-  SN: { uz:-38,  nxx0:9.2,  nyy0:11.4, label:'Neige'},
-  ELU1:{uz:-89,  nxx0:19.8, nyy0:25.0, label:'ELU1 Vent▼'},
-  ELU2:{uz:126,  nxx0:9.8,  nyy0:6.0,  label:'ELU2 Vent▲'},
+// ═══════════════════════════════════════════════════
+const CASES={
+  G0: {uz:0,    nxx0:3.0,  nyy0:3.0},
+  G:  {uz:-8,   nxx0:3.15, nyy0:3.15},
+  WP: {uz:-62,  nxx0:13.5, nyy0:16.8},
+  WS: {uz:88,   nxx0:6.8,  nyy0:4.2},
+  SN: {uz:-38,  nxx0:9.2,  nyy0:11.4},
+  ELU1:{uz:-89, nxx0:19.8, nyy0:25.0},
+  ELU2:{uz:126, nxx0:9.8,  nyy0:6.0},
 };
 
-// Forme de déplacement uz(xn,yn) ∈ [0,1]
-function uzShape(xn,yn){ return 4*xn*(1-xn)*yn*(1-yn); }
-
-// Distribution spatiale Nxx
-function fNxx(xn,yn,n0){
-  const ef=1+0.55*(Math.exp(-7*xn*(1-xn))+Math.exp(-4*yn*(1-yn)));
-  return n0*ef;
-}
-function fNyy(xn,yn,n0){
-  const ef=1+0.55*(Math.exp(-7*yn*(1-yn))+Math.exp(-4*xn*(1-xn)));
-  return n0*ef;
-}
-function fNxy(xn,yn,n0){
-  return n0*0.12*Math.sin(Math.PI*xn)*Math.sin(Math.PI*yn);
+function uzShape(xn,yn){return 4*xn*(1-xn)*yn*(1-yn);}
+function fN(xn,yn,n0,ax,ay){
+  return n0*(1+ax*Math.exp(-6*xn*(1-xn))+ay*Math.exp(-6*yn*(1-yn)));
 }
 
-// ═══════════════════════════════════════════════════════════════════
-//  THREE.JS SCÈNE
-// ═══════════════════════════════════════════════════════════════════
-const vp = document.getElementById('viewport');
-const renderer = new THREE.WebGLRenderer({antialias:true});
-renderer.setPixelRatio(window.devicePixelRatio);
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.1;
+// ═══════════════════════════════════════════════════
+//  INITIALISATION THREE.JS
+// ═══════════════════════════════════════════════════
+const vp=document.getElementById('viewport');
+
+// Vérifier WebGL
+const testCanvas=document.createElement('canvas');
+const gl=testCanvas.getContext('webgl')||testCanvas.getContext('experimental-webgl');
+if(!gl){
+  document.getElementById('gl-error').style.display='block';
+  throw new Error('WebGL non disponible');
+}
+
+const renderer=new THREE.WebGLRenderer({
+  antialias:window.devicePixelRatio<2,  // antialias seulement si écran non-retina
+  powerPreference:'high-performance',
+  alpha:false,
+  stencil:false,
+  depth:true,
+});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+renderer.setClearColor(0x0d1117,1);
 vp.appendChild(renderer.domElement);
 
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0d1117);
-scene.fog = new THREE.FogExp2(0x0d1117, 0.000025);
+const scene=new THREE.Scene();
+// PAS DE FOG — les distances en mm sont très grandes, FogExp2 rendrait tout invisible
 
-const camera = new THREE.PerspectiveCamera(38,1,10,100000);
-camera.position.set(LX*1.1, (ZA+ZB)*0.9, -LY*1.4);
+const camera=new THREE.PerspectiveCamera(42,1,1,200000);
+// Position : vue 3/4 au-dessus de la voile
+camera.position.set(LX*1.2,(ZA+ZB)*1.0,-LY*1.5);
 
-const controls = new THREE.OrbitControls(camera, renderer.domElement);
-controls.target.set(LX/2, (ZA+ZB*2)/4, LY/2);
-controls.enableDamping=true; controls.dampingFactor=0.07;
-controls.minDistance=200; controls.maxDistance=40000;
+const controls=new THREE.OrbitControls(camera,renderer.domElement);
+controls.target.set(LX/2,(ZA+ZB*2)/4,LY/2);
+controls.enableDamping=true;
+controls.dampingFactor=0.08;
+controls.minDistance=100;
+controls.maxDistance=60000;
+controls.touches={ONE:THREE.TOUCH.ROTATE,TWO:THREE.TOUCH.DOLLY_PAN};
+controls.update();
 
 // Lumières
-scene.add(new THREE.AmbientLight(0x334455, 0.8));
-const dl1=new THREE.DirectionalLight(0xffffff,0.9);
-dl1.position.set(8000,12000,-5000); scene.add(dl1);
-const dl2=new THREE.DirectionalLight(0x6090ff,0.35);
-dl2.position.set(-5000,4000,8000); scene.add(dl2);
+scene.add(new THREE.AmbientLight(0xffffff,0.6));
+const dl=new THREE.DirectionalLight(0xffffff,0.9);
+dl.position.set(8000,10000,-4000);
+scene.add(dl);
+const dl2=new THREE.DirectionalLight(0x8090ff,0.4);
+dl2.position.set(-4000,5000,8000);
+scene.add(dl2);
 
-// ═══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
 //  GÉOMÉTRIE MEMBRANE
-// ═══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
 const NVERT=(NX+1)*(NY+1);
 const basePos=new Float32Array(NVERT*3);
 const uvArr  =new Float32Array(NVERT*2);
@@ -249,162 +273,154 @@ for(let j=0;j<=NY;j++){
   for(let i=0;i<=NX;i++){
     const k=j*(NX+1)+i;
     const x=LX*i/NX, y=LY*j/NY, z=SZ(x,y);
-    basePos[k*3]=x; basePos[k*3+1]=z; basePos[k*3+2]=y; // Y-up
+    // Y-up: Three.js (X, Z, Y)
+    basePos[k*3]=x; basePos[k*3+1]=z; basePos[k*3+2]=y;
     uvArr[k*2]=i/NX; uvArr[k*2+1]=j/NY;
   }
 }
 
+// Triangulation
 const idxArr=new Uint32Array(NX*NY*6);
 let ii=0;
 for(let j=0;j<NY;j++){
   for(let i=0;i<NX;i++){
-    const n00=j*(NX+1)+i, n10=n00+1, n01=n00+(NX+1), n11=n01+1;
-    idxArr[ii++]=n00;idxArr[ii++]=n10;idxArr[ii++]=n11;
-    idxArr[ii++]=n00;idxArr[ii++]=n11;idxArr[ii++]=n01;
+    const a=j*(NX+1)+i,b=a+1,c=a+(NX+1),d=c+1;
+    idxArr[ii++]=a;idxArr[ii++]=b;idxArr[ii++]=d;
+    idxArr[ii++]=a;idxArr[ii++]=d;idxArr[ii++]=c;
   }
 }
 
-const gMemb=new THREE.BufferGeometry();
-gMemb.setAttribute('position',new THREE.BufferAttribute(basePos.slice(),3));
-gMemb.setAttribute('uv',new THREE.BufferAttribute(uvArr,2));
-gMemb.setAttribute('color',new THREE.BufferAttribute(new Float32Array(NVERT*3).fill(0.5),3));
-gMemb.setIndex(new THREE.BufferAttribute(idxArr,1));
-gMemb.computeVertexNormals();
+const gM=new THREE.BufferGeometry();
+gM.setAttribute('position',new THREE.BufferAttribute(basePos.slice(),3));
+gM.setAttribute('uv',       new THREE.BufferAttribute(uvArr,2));
+gM.setAttribute('color',    new THREE.BufferAttribute(new Float32Array(NVERT*3).fill(0.4),3));
+gM.setIndex(new THREE.BufferAttribute(idxArr,1));
+gM.computeVertexNormals();
 
-const mMemb=new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide,transparent:true,opacity:0.88});
-const meshMemb=new THREE.Mesh(gMemb,mMemb);
-scene.add(meshMemb);
+const mM=new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide,transparent:true,opacity:0.88});
+const meshM=new THREE.Mesh(gM,mM);
+scene.add(meshM);
 
 // Wireframe
-const gWire=new THREE.WireframeGeometry(gMemb);
-const mWire=new THREE.LineBasicMaterial({color:0x30363d,transparent:true,opacity:0.4});
-const wireframe=new THREE.LineSegments(gWire,mWire);
+const gW=new THREE.WireframeGeometry(gM);
+const wireframe=new THREE.LineSegments(gW,new THREE.LineBasicMaterial({color:0x30363d,transparent:true,opacity:0.35}));
 wireframe.visible=false;
-meshMemb.add(wireframe);
+meshM.add(wireframe);
 
-// ═══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
 //  CÂBLES, MÂTS, HAUBANS
-// ═══════════════════════════════════════════════════════════════════
-const cGroup=new THREE.Group();
-scene.add(cGroup);
+// ═══════════════════════════════════════════════════
+const cGrp=new THREE.Group();
+scene.add(cGrp);
 
-const mCab =new THREE.LineBasicMaterial({color:0xf0883e,linewidth:2});
-const mMat =new THREE.LineBasicMaterial({color:0x58a6ff,linewidth:3});
-const mHau =new THREE.LineBasicMaterial({color:0x79c0ff,transparent:true,opacity:0.6});
-const mAnc =new THREE.LineBasicMaterial({color:0xffa657});
-
-function makeLine(pts,mat){
-  return new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),mat);
+function line(pts,col,opa){
+  const g=new THREE.BufferGeometry().setFromPoints(pts);
+  const m=new THREE.LineBasicMaterial({color:col,transparent:opa<1,opacity:opa});
+  return new THREE.Line(g,m);
 }
-function edgePts(x0,y0,x1,y1,n=20){
+function edgePts(x0,y0,x1,y1,n){
   const p=[];
-  for(let k=0;k<=n;k++){
-    const t=k/n, x=x0+(x1-x0)*t, y=y0+(y1-y0)*t;
-    p.push(vSurf(x,y));
-  }
+  for(let k=0;k<=n;k++){const t=k/n;p.push(vS(x0+(x1-x0)*t,y0+(y1-y0)*t));}
   return p;
 }
 
-// Câbles périmétrique
-cGroup.add(makeLine(edgePts(0,0,LX,0),mCab));
-cGroup.add(makeLine(edgePts(LX,0,LX,LY),mCab));
-cGroup.add(makeLine(edgePts(LX,LY,0,LY),mCab));
-cGroup.add(makeLine(edgePts(0,LY,0,0),mCab));
+// Câbles périmétrique (orange)
+cGrp.add(line(edgePts(0,0,LX,0,16), 0xf0883e,1));
+cGrp.add(line(edgePts(LX,0,LX,LY,16),0xf0883e,1));
+cGrp.add(line(edgePts(LX,LY,0,LY,16),0xf0883e,1));
+cGrp.add(line(edgePts(0,LY,0,0,16), 0xf0883e,1));
 
-// Mâts
-cGroup.add(makeLine([v3(0,0,ZA-HMAT),v3(0,0,ZA)],mMat));
-cGroup.add(makeLine([v3(LX,LY,ZC-HMAT),v3(LX,LY,ZC)],mMat));
+// Mâts (bleu)
+cGrp.add(line([v3(0,0,ZA-HMAT),v3(0,0,ZA)], 0x58a6ff,1));
+cGrp.add(line([v3(LX,LY,ZC-HMAT),v3(LX,LY,ZC)],0x58a6ff,1));
 
-// Câbles ancrage coins bas
-cGroup.add(makeLine([v3(LX,0,ZB),v3(LX,0,ZB-HMAT)],mAnc));
-cGroup.add(makeLine([v3(0,LY,ZD),v3(0,LY,ZD-HMAT)],mAnc));
+// Câbles ancrage coins bas (jaune)
+cGrp.add(line([v3(LX,0,ZB),v3(LX,0,ZB-HMAT)], 0xffa657,1));
+cGrp.add(line([v3(0,LY,ZD),v3(0,LY,ZD-HMAT)], 0xffa657,1));
 
-// Haubans
+// Haubans (bleu clair semi-transparent)
 const OFF=1.5*HMAT;
-cGroup.add(makeLine([v3(0,0,ZA),v3(-OFF,0,ZA-HMAT)],mHau));
-cGroup.add(makeLine([v3(0,0,ZA),v3(0,-OFF,ZA-HMAT)],mHau));
-cGroup.add(makeLine([v3(LX,LY,ZC),v3(LX+OFF,LY,ZC-HMAT)],mHau));
-cGroup.add(makeLine([v3(LX,LY,ZC),v3(LX,LY+OFF,ZC-HMAT)],mHau));
+cGrp.add(line([v3(0,0,ZA),v3(-OFF,0,ZA-HMAT)],   0x79c0ff,0.6));
+cGrp.add(line([v3(0,0,ZA),v3(0,-OFF,ZA-HMAT)],    0x79c0ff,0.6));
+cGrp.add(line([v3(LX,LY,ZC),v3(LX+OFF,LY,ZC-HMAT)],0x79c0ff,0.6));
+cGrp.add(line([v3(LX,LY,ZC),v3(LX,LY+OFF,ZC-HMAT)],0x79c0ff,0.6));
 
-// Sphères noeuds d'appui
-const mNod=new THREE.MeshBasicMaterial({color:0x3fb950});
-const gSph=new THREE.SphereGeometry(90,8,8);
+// Sphères noeuds (vert)
+const mN=new THREE.MeshBasicMaterial({color:0x3fb950});
+const gSp=new THREE.SphereGeometry(100,8,6);
 [v3(0,0,ZA-HMAT),v3(LX,LY,ZC-HMAT),v3(LX,0,ZB-HMAT),v3(0,LY,ZD-HMAT),
- v3(-OFF,0,ZA-HMAT),v3(0,-OFF,ZA-HMAT),v3(LX+OFF,LY,ZC-HMAT),v3(LX,LY+OFF,ZC-HMAT)
-].forEach(p=>{
-  const s=new THREE.Mesh(gSph,mNod);
-  s.position.copy(p); cGroup.add(s);
-});
-
-// Axes helper
-const axH=new THREE.AxesHelper(800);
-axH.position.copy(v3(-300,-300,ZA-HMAT-200));
-scene.add(axH);
+ v3(-OFF,0,ZA-HMAT),v3(0,-OFF,ZA-HMAT),
+ v3(LX+OFF,LY,ZC-HMAT),v3(LX,LY+OFF,ZC-HMAT)
+].forEach(p=>{const s=new THREE.Mesh(gSp,mN);s.position.copy(p);cGrp.add(s);});
 
 // Grille sol
-const grid=new THREE.GridHelper(22000,22,0x1c2128,0x1c2128);
-grid.position.copy(v3(LX/2,LY/2,ZA-HMAT));
-scene.add(grid);
+const grd=new THREE.GridHelper(24000,24,0x1c2128,0x1c2128);
+grd.position.copy(v3(LX/2,LY/2,ZA-HMAT));
+scene.add(grd);
 
-// ═══════════════════════════════════════════════════════════════════
+// Axes
+const ax=new THREE.AxesHelper(800);
+ax.position.copy(v3(-400,-400,ZA-HMAT-100));
+scene.add(ax);
+
+// ═══════════════════════════════════════════════════
 //  COLORMAPS
-// ═══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
 function cmJet(t){
   t=Math.max(0,Math.min(1,t));
-  const r=Math.max(0,Math.min(1,1.5-Math.abs(4*t-3)));
-  const g=Math.max(0,Math.min(1,1.5-Math.abs(4*t-2)));
-  const b=Math.max(0,Math.min(1,1.5-Math.abs(4*t-1)));
-  return [r,g,b];
+  return[Math.max(0,Math.min(1,1.5-Math.abs(4*t-3))),
+         Math.max(0,Math.min(1,1.5-Math.abs(4*t-2))),
+         Math.max(0,Math.min(1,1.5-Math.abs(4*t-1)))];
 }
-const VIRIDIS_C=[[0.267,0.005,0.329],[0.283,0.141,0.459],[0.253,0.265,0.530],
-  [0.207,0.372,0.553],[0.164,0.471,0.558],[0.128,0.566,0.551],
-  [0.134,0.659,0.518],[0.267,0.749,0.441],[0.478,0.821,0.318],
-  [0.741,0.873,0.150],[0.993,0.906,0.144]];
+const VR=[[.267,.005,.329],[.283,.141,.459],[.253,.265,.530],[.207,.372,.553],
+          [.164,.471,.558],[.128,.566,.551],[.134,.659,.518],[.267,.749,.441],
+          [.478,.821,.318],[.741,.873,.150],[.993,.906,.144]];
 function cmViridis(t){
   t=Math.max(0,Math.min(1,t));
-  const i=t*(VIRIDIS_C.length-1), i0=Math.floor(i), i1=Math.min(i0+1,VIRIDIS_C.length-1), f=i-i0;
-  return VIRIDIS_C[i0].map((v,k)=>v+f*(VIRIDIS_C[i1][k]-v));
+  const i=t*(VR.length-1),i0=Math.floor(i),i1=Math.min(i0+1,VR.length-1),f=i-i0;
+  return VR[i0].map((v,k)=>v+f*(VR[i1][k]-v));
 }
-function cmCoolwarm(t){
+function cmCW(t){
   t=Math.max(0,Math.min(1,t));
-  const r=t<.5?0.23+0.54*(2*t):0.77+0.23*(2*t-1);
-  const g=t<.5?0.30+0.62*(2*t):0.92-0.62*(2*t-1);
-  const b=t<.5?0.75+0.25*(1-2*t):0.38-0.38*(2*t-1);
-  return [Math.max(0,Math.min(1,r)),Math.max(0,Math.min(1,g)),Math.max(0,Math.min(1,b))];
+  return[t<.5?0.23+0.54*(2*t):0.77+0.23*(2*t-1),
+         t<.5?0.30+0.62*(2*t):0.92-0.62*(2*t-1),
+         t<.5?0.75-0.35*(2*t):0.40-0.40*(2*t-1)].map(v=>Math.max(0,Math.min(1,v)));
 }
-function cmGray(t){ return [t,t,t]; }
-
-const CMAPS={jet:cmJet,viridis:cmViridis,coolwarm:cmCoolwarm,gray:cmGray};
+function cmGray(t){return[t,t,t];}
+const CMAPS={jet:cmJet,viridis:cmViridis,coolwarm:cmCW,gray:cmGray};
 let cmap=cmJet;
 
-// ═══════════════════════════════════════════════════════════════════
-//  MISE À JOUR VISUALISATION
-// ═══════════════════════════════════════════════════════════════════
-let curCase='G0', curField='Uz', defScale=25;
+// ═══════════════════════════════════════════════════
+//  MISE À JOUR RÉSULTATS
+// ═══════════════════════════════════════════════════
+let curCase='G0',curField='Uz',defScale=25;
 
 function updateViz(){
   const C=CASES[curCase];
-  const pos=gMemb.attributes.position;
-  const col=gMemb.attributes.color;
+  const pos=gM.attributes.position;
+  const col=gM.attributes.color;
   const vals=new Float32Array(NVERT);
   const uzArr=new Float32Array(NVERT);
-  const nminArr=[];
+  let nmin_g=Infinity;
 
   for(let j=0;j<=NY;j++){
     for(let i=0;i<=NX;i++){
       const k=j*(NX+1)+i;
       const xn=i/NX, yn=j/NY;
+
       const uz=C.uz*uzShape(xn,yn);
-      const nxx=fNxx(xn,yn,C.nxx0);
-      const nyy=fNyy(xn,yn,C.nyy0);
-      const nxy=fNxy(xn,yn,Math.min(C.nxx0,C.nyy0));
+      const nxx=fN(xn,yn,C.nxx0,0.5,0.3);
+      const nyy=fN(xn,yn,C.nyy0,0.3,0.5);
+      const nxy=Math.min(C.nxx0,C.nyy0)*0.1*Math.sin(Math.PI*xn)*Math.sin(Math.PI*yn);
       const nd=(nxx-nyy)/2;
       const nm=(nxx+nyy)/2;
-      const n1=nm+Math.sqrt(nd*nd+nxy*nxy);
-      const n2=nm-Math.sqrt(nd*nd+nxy*nxy);
+      const n2=nm-Math.sqrt(nd*nd+nxy*nxy); // effort principal mineur
+
       uzArr[k]=uz;
-      nminArr.push(n2);
-      if(curField==='Uz')    vals[k]=uz;
+      // ⚠ Pas de Math.min(...array) sur grand tableau → reduce
+      if(n2<nmin_g) nmin_g=n2;
+
+      if(curField==='Uz')   vals[k]=uz;
       else if(curField==='Umag') vals[k]=Math.abs(uz);
       else if(curField==='Nxx') vals[k]=nxx;
       else if(curField==='Nyy') vals[k]=nyy;
@@ -412,57 +428,55 @@ function updateViz(){
     }
   }
 
+  // Normalisation
   let vmin=Infinity,vmax=-Infinity;
-  for(let k=0;k<NVERT;k++){vmin=Math.min(vmin,vals[k]);vmax=Math.max(vmax,vals[k]);}
-  if(vmin===vmax){vmin-=0.01;vmax+=0.01;}
+  for(let k=0;k<NVERT;k++){if(vals[k]<vmin)vmin=vals[k];if(vals[k]>vmax)vmax=vals[k];}
+  if(vmax-vmin<0.001){vmin-=0.001;vmax+=0.001;}
 
+  // Couleurs + positions déformées
   for(let j=0;j<=NY;j++){
     for(let i=0;i<=NX;i++){
       const k=j*(NX+1)+i;
-      const bx=basePos[k*3], by=basePos[k*3+1], bz=basePos[k*3+2];
-      // by = model Z (vertical), uz displaces in model Z → Three.js Y
-      pos.setXYZ(k, bx, by+uzArr[k]*defScale, bz);
+      // basePos[k*3+1] = Z modèle en position Y Three.js
+      pos.setXYZ(k, basePos[k*3], basePos[k*3+1]+uzArr[k]*defScale, basePos[k*3+2]);
       const t=(vals[k]-vmin)/(vmax-vmin);
       const [r,g,b]=cmap(t);
       col.setXYZ(k,r,g,b);
     }
   }
-  pos.needsUpdate=true; col.needsUpdate=true;
-  gMemb.computeVertexNormals();
+  pos.needsUpdate=true;
+  col.needsUpdate=true;
+  gM.computeVertexNormals();
 
   // Stats
-  const nmin_g=Math.min(...nminArr);
   const unit=curField.startsWith('N')?'N/mm':'mm';
-  document.getElementById('sv-max').textContent=vmax.toFixed(2)+' '+unit;
-  document.getElementById('sv-min').textContent=vmin.toFixed(2)+' '+unit;
-  document.getElementById('sv-uz').textContent=(C.uz).toFixed(1);
+  document.getElementById('sv-max').textContent=vmax.toFixed(2);
+  document.getElementById('sv-min').textContent=vmin.toFixed(2);
+  document.getElementById('sv-uz').textContent=C.uz.toFixed(1);
   document.getElementById('sv-nm').textContent=nmin_g.toFixed(2);
   document.getElementById('sv-nm').style.color=nmin_g<0?'#f85149':'#58a6ff';
   document.getElementById('warn').style.display=nmin_g<0?'block':'none';
 
-  // Colorbar
-  drawColorbar(vmin,vmax,unit);
+  drawCB(vmin,vmax,unit);
 }
 
-function drawColorbar(vmin,vmax,unit){
+function drawCB(vmin,vmax,unit){
   const cv=document.getElementById('cb-bar');
   const ctx=cv.getContext('2d');
-  const H=cv.height;
-  for(let y=0;y<H;y++){
-    const t=1-y/H;
-    const [r,g,b]=cmap(t);
+  for(let y=0;y<160;y++){
+    const[r,g,b]=cmap(1-y/160);
     ctx.fillStyle=`rgb(${~~(r*255)},${~~(g*255)},${~~(b*255)})`;
-    ctx.fillRect(0,y,14,1);
+    ctx.fillRect(0,y,12,1);
   }
   document.getElementById('cb-hi').textContent=vmax.toFixed(1);
   document.getElementById('cb-mid').textContent=((vmax+vmin)/2).toFixed(1);
   document.getElementById('cb-lo').textContent=vmin.toFixed(1);
-  document.getElementById('cb-title').textContent=unit;
+  document.getElementById('cb-unit').textContent=unit;
 }
 
-// ═══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
 //  CONTRÔLES UI
-// ═══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
 document.querySelectorAll('[data-case]').forEach(b=>{
   b.addEventListener('click',()=>{
     document.querySelectorAll('[data-case]').forEach(x=>x.classList.remove('active'));
@@ -476,48 +490,42 @@ document.querySelectorAll('[data-field]').forEach(b=>{
   });
 });
 
-const slDef=document.getElementById('sl-def');
-slDef.addEventListener('input',()=>{
-  defScale=+slDef.value;
+document.getElementById('sl-def').addEventListener('input',function(){
+  defScale=+this.value;
   document.getElementById('vl-def').textContent='×'+defScale;
   updateViz();
 });
-const slOp=document.getElementById('sl-op');
-slOp.addEventListener('input',()=>{
-  mMemb.opacity=slOp.value/100;
-  document.getElementById('vl-op').textContent=slOp.value+'%';
+document.getElementById('sl-op').addEventListener('input',function(){
+  mM.opacity=this.value/100;
+  document.getElementById('vl-op').textContent=this.value+'%';
 });
-document.getElementById('sel-cmap').addEventListener('change',e=>{
-  cmap=CMAPS[e.target.value]||cmJet; updateViz();
+document.getElementById('sel-cmap').addEventListener('change',function(){
+  cmap=CMAPS[this.value]||cmJet; updateViz();
 });
 
 let wireVis=false;
 document.getElementById('btn-wire').addEventListener('click',function(){
-  wireVis=!wireVis; wireframe.visible=wireVis; this.classList.toggle('active',wireVis);
+  wireVis=!wireVis; wireframe.visible=wireVis;
+  this.classList.toggle('active',wireVis);
 });
 let cabVis=true;
 document.getElementById('btn-cables').addEventListener('click',function(){
-  cabVis=!cabVis; cGroup.visible=cabVis; this.classList.toggle('active',!cabVis);
-});
-let gridVis=true;
-document.getElementById('btn-ground').addEventListener('click',function(){
-  gridVis=!gridVis; grid.visible=gridVis; this.classList.toggle('active',!gridVis);
+  cabVis=!cabVis; cGrp.visible=cabVis;
+  this.classList.toggle('active',!cabVis);
 });
 document.getElementById('btn-reset').addEventListener('click',()=>{
-  camera.position.set(LX*1.1,(ZA+ZB)*0.9,-LY*1.4);
+  camera.position.set(LX*1.2,(ZA+ZB)*1.0,-LY*1.5);
   controls.target.set(LX/2,(ZA+ZB*2)/4,LY/2);
   controls.update();
 });
 
 // Raccourcis clavier
-const CASE_KEYS=['G0','G','WP','WS','SN','ELU1','ELU2'];
+const CK=['G0','G','WP','WS','SN','ELU1','ELU2'];
 document.addEventListener('keydown',e=>{
   if(e.key>='1'&&e.key<='7'){
-    const cas=CASE_KEYS[+e.key-1];
-    document.querySelectorAll('[data-case]').forEach(b=>{
-      b.classList.toggle('active',b.dataset.case===cas);
-    });
-    curCase=cas; updateViz();
+    const c=CK[+e.key-1];
+    document.querySelectorAll('[data-case]').forEach(b=>b.classList.toggle('active',b.dataset.case===c));
+    curCase=c; updateViz();
   }
   if(e.key.toLowerCase()==='w'){
     wireVis=!wireVis; wireframe.visible=wireVis;
@@ -525,26 +533,36 @@ document.addEventListener('keydown',e=>{
   }
 });
 
-// ═══════════════════════════════════════════════════════════════════
-//  RESIZE + BOUCLE DE RENDU
-// ═══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
+//  REDIMENSIONNEMENT — compatible mobile
+// ═══════════════════════════════════════════════════
 function onResize(){
-  const w=vp.clientWidth, h=vp.clientHeight;
-  renderer.setSize(w,h);
+  // Utiliser window.inner* pour contourner les bugs mobile avec flex/clientWidth
+  const panelW=document.getElementById('panel').offsetWidth||230;
+  const w=window.innerWidth-panelW;
+  const h=window.innerHeight;
+  if(w<=0||h<=0) return;
+  renderer.setSize(w,h,false); // false = ne pas toucher le style CSS
+  renderer.domElement.style.width=w+'px';
+  renderer.domElement.style.height=h+'px';
   camera.aspect=w/h;
   camera.updateProjectionMatrix();
 }
 window.addEventListener('resize',onResize);
-onResize();
+window.addEventListener('orientationchange',()=>setTimeout(onResize,200));
 
-function animate(){
-  requestAnimationFrame(animate);
-  controls.update();
-  renderer.render(scene,camera);
-}
-
-updateViz();
-animate();
+// ═══════════════════════════════════════════════════
+//  DÉMARRAGE — attendre que le layout soit calculé
+// ═══════════════════════════════════════════════════
+requestAnimationFrame(()=>{
+  onResize();
+  updateViz();
+  (function animate(){
+    requestAnimationFrame(animate);
+    controls.update();
+    renderer.render(scene,camera);
+  })();
+});
 </script>
 </body>
 </html>
