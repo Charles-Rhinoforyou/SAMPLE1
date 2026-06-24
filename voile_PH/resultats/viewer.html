@@ -2,105 +2,130 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Voile PH — Visualiseur Code_Aster</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5">
+<title>Voile PH — Visualiseur 3D</title>
+<!-- v3 : canvas plein-écran + panel overlay (fix Android) -->
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{width:100%;height:100%;overflow:hidden;background:#0d1117;color:#e6edf3;font-family:'Segoe UI',sans-serif;touch-action:none}
+html,body{width:100%;height:100%;overflow:hidden;background:#0d1117;touch-action:none}
 
-/* ── Layout ── */
-#app{display:flex;width:100vw;height:100vh}
+/* Canvas : premier enfant de body, pas de flex */
+body>canvas{display:block;touch-action:none}
+
+/* Panel flottant — position:fixed, sans impact sur le canvas */
 #panel{
-  width:230px;min-width:230px;max-width:230px;
-  background:#161b22;border-right:1px solid #30363d;
-  display:flex;flex-direction:column;overflow-y:auto;
-  z-index:20;flex-shrink:0;
+  position:fixed;top:0;left:0;
+  width:220px;height:100%;
+  background:rgba(16,22,28,.96);
+  color:#e6edf3;font-family:'Segoe UI',sans-serif;font-size:10px;
+  overflow-y:auto;z-index:10;
+  border-right:1px solid #30363d;
+  transition:transform .25s ease;
 }
-#viewport{
-  position:relative;
-  flex:1;overflow:hidden;
-  /* canvas fill est géré en JS */
+#panel.hidden{transform:translateX(-221px)}
+
+/* Bouton toggle (visible quand panel caché) */
+#tog{
+  display:none;
+  position:fixed;top:10px;left:10px;z-index:20;
+  background:rgba(16,22,28,.9);border:1px solid #30363d;
+  color:#e6edf3;border-radius:5px;
+  padding:6px 10px;font-size:16px;cursor:pointer;
+  touch-action:manipulation;
 }
-#viewport canvas{
-  position:absolute;top:0;left:0;display:block;
-  touch-action:none; /* laisser OrbitControls gérer le touch */
+#tog.show{display:block}
+
+/* Message d'erreur (visible en cas de bug JS ou CDN) */
+#err{
+  display:none;
+  position:fixed;bottom:50px;left:50%;transform:translateX(-50%);
+  background:#3d1a1a;border:1px solid #f85149;border-radius:6px;
+  padding:10px 18px;color:#f85149;font-size:11px;
+  z-index:100;font-family:monospace;max-width:92%;text-align:center;
+  line-height:1.5;
 }
 
-/* ── Panel UI ── */
-.logo{padding:10px 12px;border-bottom:1px solid #21262d}
-.logo h1{font-size:12px;font-weight:700;color:#e6edf3}
-.logo p{font-size:9px;color:#8b949e;margin-top:2px}
-
+/* Panel sections */
+.logo{padding:10px 12px;border-bottom:1px solid #21262d;
+  display:flex;justify-content:space-between;align-items:center}
+.logo-txt h1{font-size:12px;font-weight:700}
+.logo-txt p{font-size:9px;color:#8b949e;margin-top:2px}
 .sec{padding:8px 10px;border-bottom:1px solid #21262d}
-.sec-title{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#8b949e;margin-bottom:6px}
-
-.btn{display:flex;align-items:center;gap:5px;background:#0d1117;border:1px solid #30363d;
-  color:#c9d1d9;padding:5px 7px;border-radius:4px;cursor:pointer;font-size:10px;
-  width:100%;margin-bottom:2px;text-align:left;line-height:1.3}
-.btn:hover,.btn:active{background:#21262d;border-color:#58a6ff88}
+.sec-title{font-size:8px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.1em;color:#8b949e;margin-bottom:6px}
+.btn{display:flex;align-items:center;gap:5px;background:#0d1117;
+  border:1px solid #30363d;color:#c9d1d9;padding:5px 8px;border-radius:4px;
+  cursor:pointer;font-size:10px;width:100%;margin-bottom:3px;text-align:left;
+  line-height:1.3;touch-action:manipulation}
+.btn:hover,.btn:active{background:#21262d;border-color:#58a6ff66}
 .btn.active{background:#1f6feb22;border-color:#388bfd;color:#79c0ff}
 .dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
-
 .row{display:flex;align-items:center;gap:6px;margin-bottom:5px}
 .row label{font-size:9px;color:#8b949e;min-width:60px;flex-shrink:0}
-input[type=range]{flex:1;-webkit-appearance:none;height:3px;background:#21262d;border-radius:2px;outline:none;accent-color:#58a6ff}
-input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;background:#58a6ff;border-radius:50%;cursor:pointer}
-.val{font-size:9px;color:#58a6ff;min-width:30px;text-align:right}
-
+input[type=range]{flex:1;height:3px;accent-color:#58a6ff;
+  -webkit-appearance:none;background:#21262d;border-radius:2px;outline:none}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:14px;height:14px;
+  background:#58a6ff;border-radius:50%;cursor:pointer}
+.val{font-size:9px;color:#58a6ff;min-width:32px;text-align:right}
 select{flex:1;background:#0d1117;border:1px solid #30363d;color:#c9d1d9;
   padding:3px 4px;border-radius:3px;font-size:10px;outline:none}
-
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:3px;margin-top:3px}
 .stat{background:#0d1117;border:1px solid #21262d;border-radius:3px;padding:4px 6px}
 .stat-l{font-size:8px;color:#8b949e}
 .stat-v{font-size:11px;font-weight:700;color:#58a6ff;margin-top:1px}
+#warn{display:none;background:#3d1a1a;border:1px solid #f85149;
+  border-radius:4px;padding:5px 8px;font-size:9px;color:#f85149;margin-top:4px}
+.hint{padding:6px 10px;font-size:8px;color:#484f58;line-height:1.7}
 
-#warn{display:none;background:#3d1a1a;border:1px solid #f85149;border-radius:4px;
-  padding:5px 8px;font-size:9px;color:#f85149;margin-top:4px}
-
-.hint{padding:6px 10px;font-size:8px;color:#484f58;line-height:1.6}
-
-/* ── Overlay colorbar ── */
-#cb{position:absolute;right:10px;top:50%;transform:translateY(-50%);
-  z-index:10;pointer-events:none;display:flex;align-items:stretch;gap:5px}
+/* Colorbar (fixe, sans rapport avec le panel) */
+#cb{position:fixed;right:12px;top:50%;transform:translateY(-50%);
+  z-index:5;pointer-events:none;display:flex;align-items:stretch;gap:5px}
 #cb-bar{width:12px;height:160px;border-radius:3px;border:1px solid #30363d}
 #cb-labels{display:flex;flex-direction:column;justify-content:space-between}
 #cb-labels span{font-size:8px;color:#8b949e}
-#cb-unit{position:absolute;right:10px;font-size:8px;color:#8b949e;
-  top:calc(50% - 92px);width:12px;text-align:center;line-height:1.1}
+#cb-unit{position:fixed;right:34px;top:calc(50% - 91px);
+  font-size:8px;color:#8b949e;writing-mode:vertical-rl;text-orientation:mixed;
+  transform:rotate(180deg);letter-spacing:.05em}
 
-/* ── Info bar ── */
-#info{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);
-  background:rgba(22,27,34,.9);border:1px solid #30363d;border-radius:5px;
-  padding:4px 10px;font-size:9px;color:#8b949e;z-index:10;white-space:nowrap}
-
-/* ── Erreur WebGL ── */
-#gl-error{display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-  background:#3d1a1a;border:1px solid #f85149;border-radius:8px;
-  padding:20px;color:#f85149;text-align:center;z-index:30;font-size:13px}
+/* Info bar */
+#info{position:fixed;bottom:8px;left:50%;transform:translateX(-50%);
+  background:rgba(16,22,28,.88);border:1px solid #30363d;border-radius:5px;
+  padding:4px 12px;font-size:9px;color:#8b949e;z-index:5;white-space:nowrap}
 </style>
 </head>
 <body>
-<div id="app">
 
-<!-- ══════════ PANEL ══════════ -->
+<!-- Bouton "ouvrir le panel" (mobile) -->
+<button id="tog" onclick="togglePanel()">☰</button>
+
+<!-- Panel flottant -->
 <div id="panel">
   <div class="logo">
-    <h1>⬡ Voile PH 6×6 m</h1>
-    <p>Code_Aster · Paraboloïde Hyperbolique</p>
+    <div class="logo-txt">
+      <h1>⬡ Voile PH 6×6 m</h1>
+      <p>Code_Aster · PH Shade Sail</p>
+    </div>
+    <button class="btn" onclick="togglePanel()"
+      style="width:auto;padding:5px 9px;flex-shrink:0;font-size:13px">✕</button>
   </div>
 
   <div class="sec">
     <div class="sec-title">Cas de charge</div>
-    <button class="btn active" data-case="G0"><span class="dot" style="background:#3fb950"></span>Précontrainte (G₀)</button>
-    <button class="btn" data-case="G"><span class="dot" style="background:#e3b341"></span>G₀ + Poids propre</button>
-    <button class="btn" data-case="WP"><span class="dot" style="background:#f0883e"></span>G₀+G + Vent▼ pression</button>
-    <button class="btn" data-case="WS"><span class="dot" style="background:#79c0ff"></span>G₀+G + Vent▲ succion</button>
-    <button class="btn" data-case="SN"><span class="dot" style="background:#a5d6ff"></span>G₀+G + Neige</button>
-    <button class="btn" data-case="ELU1"><span class="dot" style="background:#f85149"></span>ELU1 : 1.35G+1.50W▼</button>
-    <button class="btn" data-case="ELU2"><span class="dot" style="background:#ff7b72"></span>ELU2 : 1.35G+1.50W▲</button>
+    <button class="btn active" data-case="G0">
+      <span class="dot" style="background:#3fb950"></span>Précontrainte (G₀)</button>
+    <button class="btn" data-case="G">
+      <span class="dot" style="background:#e3b341"></span>G₀ + Poids propre</button>
+    <button class="btn" data-case="WP">
+      <span class="dot" style="background:#f0883e"></span>G+G + Vent▼ pression</button>
+    <button class="btn" data-case="WS">
+      <span class="dot" style="background:#79c0ff"></span>G₀+G + Vent▲ succion</button>
+    <button class="btn" data-case="SN">
+      <span class="dot" style="background:#a5d6ff"></span>G₀+G + Neige</button>
+    <button class="btn" data-case="ELU1">
+      <span class="dot" style="background:#f85149"></span>ELU1 : 1.35G+1.50W▼</button>
+    <button class="btn" data-case="ELU2">
+      <span class="dot" style="background:#ff7b72"></span>ELU2 : 1.35G+1.50W▲</button>
   </div>
 
   <div class="sec">
@@ -142,10 +167,14 @@ select{flex:1;background:#0d1117;border:1px solid #30363d;color:#c9d1d9;
   <div class="sec">
     <div class="sec-title">Valeurs extrêmes</div>
     <div class="grid2">
-      <div class="stat"><div class="stat-l">Max</div><div class="stat-v" id="sv-max">—</div></div>
-      <div class="stat"><div class="stat-l">Min</div><div class="stat-v" id="sv-min">—</div></div>
-      <div class="stat"><div class="stat-l">Uz max mm</div><div class="stat-v" id="sv-uz">—</div></div>
-      <div class="stat"><div class="stat-l">Nmin N/mm</div><div class="stat-v" id="sv-nm">—</div></div>
+      <div class="stat"><div class="stat-l">Max</div>
+        <div class="stat-v" id="sv-max">—</div></div>
+      <div class="stat"><div class="stat-l">Min</div>
+        <div class="stat-v" id="sv-min">—</div></div>
+      <div class="stat"><div class="stat-l">Uz max mm</div>
+        <div class="stat-v" id="sv-uz">—</div></div>
+      <div class="stat"><div class="stat-l">Nmin N/mm</div>
+        <div class="stat-v" id="sv-nm">—</div></div>
     </div>
   </div>
 
@@ -153,81 +182,90 @@ select{flex:1;background:#0d1117;border:1px solid #30363d;color:#c9d1d9;
     👆 1 doigt : rotation<br>
     ✌ 2 doigts : zoom/pan<br>
     🖱 Molette : zoom<br>
-    Touches 1-7 : cas charge<br>
-    W : wireframe
+    Touches 1-7 : cas de charge · W : wireframe
   </div>
 </div>
 
-<!-- ══════════ VIEWPORT ══════════ -->
-<div id="viewport">
-  <div id="cb">
-    <canvas id="cb-bar" width="12" height="160"></canvas>
-    <div id="cb-labels">
-      <span id="cb-hi">—</span>
-      <span id="cb-mid">—</span>
-      <span id="cb-lo">—</span>
-    </div>
-  </div>
-  <div id="cb-unit">mm</div>
-  <div id="info">Pincer/glisser pour naviguer · Résultats représentatifs Code_Aster</div>
-  <div id="gl-error">
-    <div style="font-size:24px;margin-bottom:8px">⚠</div>
-    WebGL non disponible<br>
-    <small style="color:#8b949e">Vérifiez les paramètres du navigateur</small>
+<!-- Colorbar -->
+<div id="cb">
+  <canvas id="cb-bar" width="12" height="160"></canvas>
+  <div id="cb-labels">
+    <span id="cb-hi">—</span>
+    <span id="cb-mid">—</span>
+    <span id="cb-lo">—</span>
   </div>
 </div>
+<div id="cb-unit">mm</div>
 
-</div><!-- #app -->
+<!-- Info barre bas -->
+<div id="info">Pincer/glisser · Résultats représentatifs Code_Aster</div>
+
+<!-- Zone d'erreur (affichée si CDN ou JS échoue) -->
+<div id="err"></div>
+
+<!-- ═══════════════════════════════════════════════════
+     Scripts Three.js — avec gestionnaire d'erreur CDN
+     ═══════════════════════════════════════════════════ -->
+<script>
+/* Affiche les erreurs dans le DOM (visible sur mobile) */
+function showErr(msg){
+  var e=document.getElementById('err');
+  e.textContent=String(msg);
+  e.style.display='block';
+}
+window.onerror=function(msg,src,line,col,err){
+  showErr('Erreur JS (ligne '+line+'): '+msg);
+  return false;
+};
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"
+  onerror="showErr('Échec chargement Three.js — vérifiez votre connexion internet')"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"
+  onerror="showErr('Échec chargement OrbitControls')"></script>
 
 <script>
-// ═══════════════════════════════════════════════════
-//  PARAMÈTRES (mêmes que parametres.py, unité = mm)
-// ═══════════════════════════════════════════════════
-const LX=6000,LY=6000,ZA=3500,ZB=2000,ZC=3500,ZD=2000,HMAT=4000;
-const NX=20,NY=20; // résolution réduite pour mobile
+// Vérifier que Three.js est chargé
+if(typeof THREE==='undefined'){
+  showErr('Three.js non disponible. Rechargez la page ou vérifiez votre connexion.');
+} else {
 
-// Équation du paraboloïde hyperbolique
+// ══════════════════════════════════════════════════════════
+//  PARAMÈTRES (unité = mm, même convention que parametres.py)
+// ══════════════════════════════════════════════════════════
+var LX=6000,LY=6000,ZA=3500,ZB=2000,ZC=3500,ZD=2000,HMAT=4000;
+var NX=16,NY=16;  // résolution membrane (légère pour mobile)
+
+// Surface hyperbolique (paraboloïde)
 function SZ(x,y){
   return ZA+(ZB-ZA)*(x/LX)+(ZD-ZA)*(y/LY)+(ZA-ZB-ZD+ZC)*(x/LX)*(y/LY);
 }
 
-// Système Three.js Y-up : (modelX, modelY, modelZ) → (X, modelZ, Y)
+// Conversion modèle→Three.js (Y-up) : modelZ→threeY, modelY→threeZ
 function v3(mx,my,mz){return new THREE.Vector3(mx,mz,my);}
 function vS(x,y){return v3(x,y,SZ(x,y));}
 
-// ═══════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════
 //  RÉSULTATS SYNTHÉTIQUES REPRÉSENTATIFS
-// ═══════════════════════════════════════════════════
-const CASES={
-  G0: {uz:0,    nxx0:3.0,  nyy0:3.0},
+// ══════════════════════════════════════════════════════════
+var CASES={
+  G0: {uz:0,    nxx0:3.0,  nyy0:3.0 },
   G:  {uz:-8,   nxx0:3.15, nyy0:3.15},
   WP: {uz:-62,  nxx0:13.5, nyy0:16.8},
-  WS: {uz:88,   nxx0:6.8,  nyy0:4.2},
+  WS: {uz:88,   nxx0:6.8,  nyy0:4.2 },
   SN: {uz:-38,  nxx0:9.2,  nyy0:11.4},
   ELU1:{uz:-89, nxx0:19.8, nyy0:25.0},
-  ELU2:{uz:126, nxx0:9.8,  nyy0:6.0},
+  ELU2:{uz:126, nxx0:9.8,  nyy0:6.0 },
 };
-
 function uzShape(xn,yn){return 4*xn*(1-xn)*yn*(1-yn);}
 function fN(xn,yn,n0,ax,ay){
   return n0*(1+ax*Math.exp(-6*xn*(1-xn))+ay*Math.exp(-6*yn*(1-yn)));
 }
 
-// ═══════════════════════════════════════════════════
-//  INITIALISATION THREE.JS
-// ═══════════════════════════════════════════════════
-const vp=document.getElementById('viewport');
-
-// Vérifier WebGL
-const testCanvas=document.createElement('canvas');
-const gl=testCanvas.getContext('webgl')||testCanvas.getContext('experimental-webgl');
-if(!gl){
-  document.getElementById('gl-error').style.display='block';
-  throw new Error('WebGL non disponible');
-}
-
-const renderer=new THREE.WebGLRenderer({
-  antialias:window.devicePixelRatio<2,  // antialias seulement si écran non-retina
+// ══════════════════════════════════════════════════════════
+//  RENDERER — canvas inséré avant tout autre élément
+// ══════════════════════════════════════════════════════════
+var renderer=new THREE.WebGLRenderer({
+  antialias:false,          // désactivé pour perf mobile
   powerPreference:'high-performance',
   alpha:false,
   stencil:false,
@@ -235,237 +273,238 @@ const renderer=new THREE.WebGLRenderer({
 });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
 renderer.setClearColor(0x0d1117,1);
-vp.appendChild(renderer.domElement);
 
-const scene=new THREE.Scene();
-// PAS DE FOG — les distances en mm sont très grandes, FogExp2 rendrait tout invisible
+// Insérer le canvas en PREMIER dans body → overlay de tout le reste
+document.body.prepend(renderer.domElement);
 
-const camera=new THREE.PerspectiveCamera(42,1,1,200000);
-// Position : vue 3/4 au-dessus de la voile
-camera.position.set(LX*1.2,(ZA+ZB)*1.0,-LY*1.5);
+// ── Scène ────────────────────────────────────────────────
+var scene=new THREE.Scene();
+var camera=new THREE.PerspectiveCamera(42,1,10,200000);
 
-const controls=new THREE.OrbitControls(camera,renderer.domElement);
-controls.target.set(LX/2,(ZA+ZB*2)/4,LY/2);
+// Position caméra : coin avant-droit, au-dessus
+var CAM_X=-LX*0.4, CAM_Y=ZA+ZB+500, CAM_Z=-LY*0.4;
+camera.position.set(CAM_X,CAM_Y,CAM_Z);
+
+var controls=new THREE.OrbitControls(camera,renderer.domElement);
+controls.target.set(LX/2,(ZA+ZB)/2,LY/2);
 controls.enableDamping=true;
 controls.dampingFactor=0.08;
-controls.minDistance=100;
-controls.maxDistance=60000;
-controls.touches={ONE:THREE.TOUCH.ROTATE,TWO:THREE.TOUCH.DOLLY_PAN};
+controls.minDistance=500;
+controls.maxDistance=80000;
+// Support tactile
+var TOUCH=THREE.TOUCH||{ROTATE:0,PAN:1,DOLLY_PAN:2};
+controls.touches={ONE:TOUCH.ROTATE,TWO:TOUCH.DOLLY_PAN};
 controls.update();
 
-// Lumières
-scene.add(new THREE.AmbientLight(0xffffff,0.6));
-const dl=new THREE.DirectionalLight(0xffffff,0.9);
-dl.position.set(8000,10000,-4000);
+// Éclairage
+scene.add(new THREE.AmbientLight(0xffffff,0.65));
+var dl=new THREE.DirectionalLight(0xffffff,0.9);
+dl.position.set(8000,10000,4000);
 scene.add(dl);
-const dl2=new THREE.DirectionalLight(0x8090ff,0.4);
-dl2.position.set(-4000,5000,8000);
+var dl2=new THREE.DirectionalLight(0x8090ff,0.35);
+dl2.position.set(-5000,6000,-3000);
 scene.add(dl2);
 
-// ═══════════════════════════════════════════════════
-//  GÉOMÉTRIE MEMBRANE
-// ═══════════════════════════════════════════════════
-const NVERT=(NX+1)*(NY+1);
-const basePos=new Float32Array(NVERT*3);
-const uvArr  =new Float32Array(NVERT*2);
+// ── Géométrie membrane ──────────────────────────────────
+var NVERT=(NX+1)*(NY+1);
+var basePos=new Float32Array(NVERT*3);
+var uvArr=new Float32Array(NVERT*2);
 
-for(let j=0;j<=NY;j++){
-  for(let i=0;i<=NX;i++){
-    const k=j*(NX+1)+i;
-    const x=LX*i/NX, y=LY*j/NY, z=SZ(x,y);
-    // Y-up: Three.js (X, Z, Y)
-    basePos[k*3]=x; basePos[k*3+1]=z; basePos[k*3+2]=y;
+for(var j=0;j<=NY;j++){
+  for(var i=0;i<=NX;i++){
+    var k=j*(NX+1)+i;
+    var x=LX*i/NX, y=LY*j/NY, mz=SZ(x,y);
+    basePos[k*3]=x;
+    basePos[k*3+1]=mz;  // Three.js Y = altitude modèle
+    basePos[k*3+2]=y;   // Three.js Z = Y modèle
     uvArr[k*2]=i/NX; uvArr[k*2+1]=j/NY;
   }
 }
 
-// Triangulation
-const idxArr=new Uint32Array(NX*NY*6);
-let ii=0;
-for(let j=0;j<NY;j++){
-  for(let i=0;i<NX;i++){
-    const a=j*(NX+1)+i,b=a+1,c=a+(NX+1),d=c+1;
-    idxArr[ii++]=a;idxArr[ii++]=b;idxArr[ii++]=d;
-    idxArr[ii++]=a;idxArr[ii++]=d;idxArr[ii++]=c;
+// Triangulation QUAD→2 TRI
+var idxArr=new Uint32Array(NX*NY*6);
+var ii=0;
+for(var j=0;j<NY;j++){
+  for(var i=0;i<NX;i++){
+    var a=j*(NX+1)+i, b=a+1, c=a+(NX+1), d=c+1;
+    idxArr[ii++]=a; idxArr[ii++]=b; idxArr[ii++]=d;
+    idxArr[ii++]=a; idxArr[ii++]=d; idxArr[ii++]=c;
   }
 }
 
-const gM=new THREE.BufferGeometry();
+var gM=new THREE.BufferGeometry();
 gM.setAttribute('position',new THREE.BufferAttribute(basePos.slice(),3));
-gM.setAttribute('uv',       new THREE.BufferAttribute(uvArr,2));
-gM.setAttribute('color',    new THREE.BufferAttribute(new Float32Array(NVERT*3).fill(0.4),3));
+gM.setAttribute('uv',      new THREE.BufferAttribute(uvArr,2));
+gM.setAttribute('color',   new THREE.BufferAttribute(new Float32Array(NVERT*3).fill(0.4),3));
 gM.setIndex(new THREE.BufferAttribute(idxArr,1));
 gM.computeVertexNormals();
 
-const mM=new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide,transparent:true,opacity:0.88});
-const meshM=new THREE.Mesh(gM,mM);
+var mM=new THREE.MeshLambertMaterial({
+  vertexColors:true,side:THREE.DoubleSide,
+  transparent:true,opacity:0.88
+});
+var meshM=new THREE.Mesh(gM,mM);
 scene.add(meshM);
 
-// Wireframe
-const gW=new THREE.WireframeGeometry(gM);
-const wireframe=new THREE.LineSegments(gW,new THREE.LineBasicMaterial({color:0x30363d,transparent:true,opacity:0.35}));
+var wireframe=new THREE.LineSegments(
+  new THREE.WireframeGeometry(gM),
+  new THREE.LineBasicMaterial({color:0x30363d,transparent:true,opacity:0.35})
+);
 wireframe.visible=false;
 meshM.add(wireframe);
 
-// ═══════════════════════════════════════════════════
-//  CÂBLES, MÂTS, HAUBANS
-// ═══════════════════════════════════════════════════
-const cGrp=new THREE.Group();
+// ── Câbles, mâts, haubans ────────────────────────────────
+var cGrp=new THREE.Group();
 scene.add(cGrp);
 
 function line(pts,col,opa){
-  const g=new THREE.BufferGeometry().setFromPoints(pts);
-  const m=new THREE.LineBasicMaterial({color:col,transparent:opa<1,opacity:opa});
+  var g=new THREE.BufferGeometry().setFromPoints(pts);
+  var m=new THREE.LineBasicMaterial({color:col,transparent:opa<1,opacity:opa});
   return new THREE.Line(g,m);
 }
 function edgePts(x0,y0,x1,y1,n){
-  const p=[];
-  for(let k=0;k<=n;k++){const t=k/n;p.push(vS(x0+(x1-x0)*t,y0+(y1-y0)*t));}
+  var p=[];
+  for(var k=0;k<=n;k++){var t=k/n; p.push(vS(x0+(x1-x0)*t,y0+(y1-y0)*t));}
   return p;
 }
 
 // Câbles périmétrique (orange)
-cGrp.add(line(edgePts(0,0,LX,0,16), 0xf0883e,1));
-cGrp.add(line(edgePts(LX,0,LX,LY,16),0xf0883e,1));
-cGrp.add(line(edgePts(LX,LY,0,LY,16),0xf0883e,1));
-cGrp.add(line(edgePts(0,LY,0,0,16), 0xf0883e,1));
+cGrp.add(line(edgePts(0,0,LX,0,16),    0xf0883e,1));
+cGrp.add(line(edgePts(LX,0,LX,LY,16),  0xf0883e,1));
+cGrp.add(line(edgePts(LX,LY,0,LY,16),  0xf0883e,1));
+cGrp.add(line(edgePts(0,LY,0,0,16),    0xf0883e,1));
 
-// Mâts (bleu)
-cGrp.add(line([v3(0,0,ZA-HMAT),v3(0,0,ZA)], 0x58a6ff,1));
-cGrp.add(line([v3(LX,LY,ZC-HMAT),v3(LX,LY,ZC)],0x58a6ff,1));
+// Mâts (bleu vif)
+cGrp.add(line([v3(0,0,ZA-HMAT),   v3(0,0,ZA)],   0x58a6ff,1));
+cGrp.add(line([v3(LX,LY,ZC-HMAT), v3(LX,LY,ZC)], 0x58a6ff,1));
 
-// Câbles ancrage coins bas (jaune)
-cGrp.add(line([v3(LX,0,ZB),v3(LX,0,ZB-HMAT)], 0xffa657,1));
-cGrp.add(line([v3(0,LY,ZD),v3(0,LY,ZD-HMAT)], 0xffa657,1));
+// Câbles ancrage coins bas (or)
+cGrp.add(line([v3(LX,0,ZB), v3(LX,0,ZB-HMAT)],   0xffa657,1));
+cGrp.add(line([v3(0,LY,ZD), v3(0,LY,ZD-HMAT)],   0xffa657,1));
 
 // Haubans (bleu clair semi-transparent)
-const OFF=1.5*HMAT;
-cGrp.add(line([v3(0,0,ZA),v3(-OFF,0,ZA-HMAT)],   0x79c0ff,0.6));
-cGrp.add(line([v3(0,0,ZA),v3(0,-OFF,ZA-HMAT)],    0x79c0ff,0.6));
-cGrp.add(line([v3(LX,LY,ZC),v3(LX+OFF,LY,ZC-HMAT)],0x79c0ff,0.6));
-cGrp.add(line([v3(LX,LY,ZC),v3(LX,LY+OFF,ZC-HMAT)],0x79c0ff,0.6));
+var OFF=1.5*HMAT;
+cGrp.add(line([v3(0,0,ZA),   v3(-OFF,0,ZA-HMAT)],    0x79c0ff,0.6));
+cGrp.add(line([v3(0,0,ZA),   v3(0,-OFF,ZA-HMAT)],    0x79c0ff,0.6));
+cGrp.add(line([v3(LX,LY,ZC), v3(LX+OFF,LY,ZC-HMAT)],0x79c0ff,0.6));
+cGrp.add(line([v3(LX,LY,ZC), v3(LX,LY+OFF,ZC-HMAT)],0x79c0ff,0.6));
 
-// Sphères noeuds (vert)
-const mN=new THREE.MeshBasicMaterial({color:0x3fb950});
-const gSp=new THREE.SphereGeometry(100,8,6);
+// Noeuds d'ancrage (sphères vertes)
+var mN=new THREE.MeshBasicMaterial({color:0x3fb950});
+var gSp=new THREE.SphereGeometry(120,8,6);
 [v3(0,0,ZA-HMAT),v3(LX,LY,ZC-HMAT),v3(LX,0,ZB-HMAT),v3(0,LY,ZD-HMAT),
  v3(-OFF,0,ZA-HMAT),v3(0,-OFF,ZA-HMAT),
  v3(LX+OFF,LY,ZC-HMAT),v3(LX,LY+OFF,ZC-HMAT)
-].forEach(p=>{const s=new THREE.Mesh(gSp,mN);s.position.copy(p);cGrp.add(s);});
+].forEach(function(p){var s=new THREE.Mesh(gSp,mN);s.position.copy(p);cGrp.add(s);});
 
 // Grille sol
-const grd=new THREE.GridHelper(24000,24,0x1c2128,0x1c2128);
+var grd=new THREE.GridHelper(24000,24,0x1c2128,0x1c2128);
 grd.position.copy(v3(LX/2,LY/2,ZA-HMAT));
 scene.add(grd);
 
-// Axes
-const ax=new THREE.AxesHelper(800);
-ax.position.copy(v3(-400,-400,ZA-HMAT-100));
+// Axes XYZ
+var ax=new THREE.AxesHelper(900);
+ax.position.copy(v3(-500,-500,ZA-HMAT-50));
 scene.add(ax);
 
-// ═══════════════════════════════════════════════════
-//  COLORMAPS
-// ═══════════════════════════════════════════════════
+// ── Colormaps ────────────────────────────────────────────
 function cmJet(t){
   t=Math.max(0,Math.min(1,t));
   return[Math.max(0,Math.min(1,1.5-Math.abs(4*t-3))),
          Math.max(0,Math.min(1,1.5-Math.abs(4*t-2))),
          Math.max(0,Math.min(1,1.5-Math.abs(4*t-1)))];
 }
-const VR=[[.267,.005,.329],[.283,.141,.459],[.253,.265,.530],[.207,.372,.553],
-          [.164,.471,.558],[.128,.566,.551],[.134,.659,.518],[.267,.749,.441],
-          [.478,.821,.318],[.741,.873,.150],[.993,.906,.144]];
+var VR=[[.267,.005,.329],[.283,.141,.459],[.253,.265,.530],[.207,.372,.553],
+        [.164,.471,.558],[.128,.566,.551],[.134,.659,.518],[.267,.749,.441],
+        [.478,.821,.318],[.741,.873,.150],[.993,.906,.144]];
 function cmViridis(t){
   t=Math.max(0,Math.min(1,t));
-  const i=t*(VR.length-1),i0=Math.floor(i),i1=Math.min(i0+1,VR.length-1),f=i-i0;
-  return VR[i0].map((v,k)=>v+f*(VR[i1][k]-v));
+  var i=t*(VR.length-1),i0=Math.floor(i),i1=Math.min(i0+1,VR.length-1),f=i-i0;
+  return VR[i0].map(function(v,k){return v+f*(VR[i1][k]-v);});
 }
 function cmCW(t){
   t=Math.max(0,Math.min(1,t));
   return[t<.5?0.23+0.54*(2*t):0.77+0.23*(2*t-1),
          t<.5?0.30+0.62*(2*t):0.92-0.62*(2*t-1),
-         t<.5?0.75-0.35*(2*t):0.40-0.40*(2*t-1)].map(v=>Math.max(0,Math.min(1,v)));
+         t<.5?0.75-0.35*(2*t):0.40-0.40*(2*t-1)]
+    .map(function(v){return Math.max(0,Math.min(1,v));});
 }
-function cmGray(t){return[t,t,t];}
-const CMAPS={jet:cmJet,viridis:cmViridis,coolwarm:cmCW,gray:cmGray};
-let cmap=cmJet;
+var CMAPS={jet:cmJet,viridis:cmViridis,coolwarm:cmCW,
+           gray:function(t){return[t,t,t];}};
+var cmap=cmJet;
 
-// ═══════════════════════════════════════════════════
-//  MISE À JOUR RÉSULTATS
-// ═══════════════════════════════════════════════════
-let curCase='G0',curField='Uz',defScale=25;
+// ══════════════════════════════════════════════════════════
+//  MISE À JOUR VISUALISATION
+// ══════════════════════════════════════════════════════════
+var curCase='G0',curField='Uz',defScale=25;
 
 function updateViz(){
-  const C=CASES[curCase];
-  const pos=gM.attributes.position;
-  const col=gM.attributes.color;
-  const vals=new Float32Array(NVERT);
-  const uzArr=new Float32Array(NVERT);
-  let nmin_g=Infinity;
+  var C=CASES[curCase];
+  var pos=gM.attributes.position;
+  var col=gM.attributes.color;
+  var vals=new Float32Array(NVERT);
+  var uzArr=new Float32Array(NVERT);
+  var nmin_g=1e9;
 
-  for(let j=0;j<=NY;j++){
-    for(let i=0;i<=NX;i++){
-      const k=j*(NX+1)+i;
-      const xn=i/NX, yn=j/NY;
-
-      const uz=C.uz*uzShape(xn,yn);
-      const nxx=fN(xn,yn,C.nxx0,0.5,0.3);
-      const nyy=fN(xn,yn,C.nyy0,0.3,0.5);
-      const nxy=Math.min(C.nxx0,C.nyy0)*0.1*Math.sin(Math.PI*xn)*Math.sin(Math.PI*yn);
-      const nd=(nxx-nyy)/2;
-      const nm=(nxx+nyy)/2;
-      const n2=nm-Math.sqrt(nd*nd+nxy*nxy); // effort principal mineur
-
+  for(var j=0;j<=NY;j++){
+    for(var i=0;i<=NX;i++){
+      var k=j*(NX+1)+i;
+      var xn=i/NX, yn=j/NY;
+      var uz=C.uz*uzShape(xn,yn);
+      var nxx=fN(xn,yn,C.nxx0,0.5,0.3);
+      var nyy=fN(xn,yn,C.nyy0,0.3,0.5);
+      var nxy=Math.min(C.nxx0,C.nyy0)*0.1*Math.sin(Math.PI*xn)*Math.sin(Math.PI*yn);
+      var nd=(nxx-nyy)/2, nm=(nxx+nyy)/2;
+      var n2=nm-Math.sqrt(nd*nd+nxy*nxy);
       uzArr[k]=uz;
-      // ⚠ Pas de Math.min(...array) sur grand tableau → reduce
       if(n2<nmin_g) nmin_g=n2;
-
-      if(curField==='Uz')   vals[k]=uz;
+      if(curField==='Uz')        vals[k]=uz;
       else if(curField==='Umag') vals[k]=Math.abs(uz);
-      else if(curField==='Nxx') vals[k]=nxx;
-      else if(curField==='Nyy') vals[k]=nyy;
+      else if(curField==='Nxx')  vals[k]=nxx;
+      else if(curField==='Nyy')  vals[k]=nyy;
       else if(curField==='Nmin') vals[k]=n2;
     }
   }
 
-  // Normalisation
-  let vmin=Infinity,vmax=-Infinity;
-  for(let k=0;k<NVERT;k++){if(vals[k]<vmin)vmin=vals[k];if(vals[k]>vmax)vmax=vals[k];}
+  var vmin=1e9, vmax=-1e9;
+  for(var k=0;k<NVERT;k++){
+    if(vals[k]<vmin) vmin=vals[k];
+    if(vals[k]>vmax) vmax=vals[k];
+  }
   if(vmax-vmin<0.001){vmin-=0.001;vmax+=0.001;}
 
-  // Couleurs + positions déformées
-  for(let j=0;j<=NY;j++){
-    for(let i=0;i<=NX;i++){
-      const k=j*(NX+1)+i;
-      // basePos[k*3+1] = Z modèle en position Y Three.js
-      pos.setXYZ(k, basePos[k*3], basePos[k*3+1]+uzArr[k]*defScale, basePos[k*3+2]);
-      const t=(vals[k]-vmin)/(vmax-vmin);
-      const [r,g,b]=cmap(t);
-      col.setXYZ(k,r,g,b);
+  for(var j=0;j<=NY;j++){
+    for(var i=0;i<=NX;i++){
+      var k=j*(NX+1)+i;
+      pos.setXYZ(k, basePos[k*3],
+                    basePos[k*3+1]+uzArr[k]*defScale,
+                    basePos[k*3+2]);
+      var rgb=cmap((vals[k]-vmin)/(vmax-vmin));
+      col.setXYZ(k,rgb[0],rgb[1],rgb[2]);
     }
   }
   pos.needsUpdate=true;
   col.needsUpdate=true;
   gM.computeVertexNormals();
 
-  // Stats
-  const unit=curField.startsWith('N')?'N/mm':'mm';
+  var unit=curField.charAt(0)==='N'?'N/mm':'mm';
   document.getElementById('sv-max').textContent=vmax.toFixed(2);
   document.getElementById('sv-min').textContent=vmin.toFixed(2);
   document.getElementById('sv-uz').textContent=C.uz.toFixed(1);
   document.getElementById('sv-nm').textContent=nmin_g.toFixed(2);
   document.getElementById('sv-nm').style.color=nmin_g<0?'#f85149':'#58a6ff';
   document.getElementById('warn').style.display=nmin_g<0?'block':'none';
-
   drawCB(vmin,vmax,unit);
 }
 
 function drawCB(vmin,vmax,unit){
-  const cv=document.getElementById('cb-bar');
-  const ctx=cv.getContext('2d');
-  for(let y=0;y<160;y++){
-    const[r,g,b]=cmap(1-y/160);
-    ctx.fillStyle=`rgb(${~~(r*255)},${~~(g*255)},${~~(b*255)})`;
+  var cv=document.getElementById('cb-bar');
+  var ctx=cv.getContext('2d');
+  for(var y=0;y<160;y++){
+    var rgb=cmap(1-y/160);
+    ctx.fillStyle='rgb('+Math.round(rgb[0]*255)+','+
+                         Math.round(rgb[1]*255)+','+
+                         Math.round(rgb[2]*255)+')';
     ctx.fillRect(0,y,12,1);
   }
   document.getElementById('cb-hi').textContent=vmax.toFixed(1);
@@ -474,19 +513,27 @@ function drawCB(vmin,vmax,unit){
   document.getElementById('cb-unit').textContent=unit;
 }
 
-// ═══════════════════════════════════════════════════
-//  CONTRÔLES UI
-// ═══════════════════════════════════════════════════
-document.querySelectorAll('[data-case]').forEach(b=>{
-  b.addEventListener('click',()=>{
-    document.querySelectorAll('[data-case]').forEach(x=>x.classList.remove('active'));
-    b.classList.add('active'); curCase=b.dataset.case; updateViz();
+// ══════════════════════════════════════════════════════════
+//  ÉVÉNEMENTS UI
+// ══════════════════════════════════════════════════════════
+document.querySelectorAll('[data-case]').forEach(function(b){
+  b.addEventListener('click',function(){
+    document.querySelectorAll('[data-case]').forEach(function(x){
+      x.classList.remove('active');
+    });
+    b.classList.add('active');
+    curCase=b.dataset.case;
+    updateViz();
   });
 });
-document.querySelectorAll('[data-field]').forEach(b=>{
-  b.addEventListener('click',()=>{
-    document.querySelectorAll('[data-field]').forEach(x=>x.classList.remove('active'));
-    b.classList.add('active'); curField=b.dataset.field; updateViz();
+document.querySelectorAll('[data-field]').forEach(function(b){
+  b.addEventListener('click',function(){
+    document.querySelectorAll('[data-field]').forEach(function(x){
+      x.classList.remove('active');
+    });
+    b.classList.add('active');
+    curField=b.dataset.field;
+    updateViz();
   });
 });
 
@@ -500,31 +547,47 @@ document.getElementById('sl-op').addEventListener('input',function(){
   document.getElementById('vl-op').textContent=this.value+'%';
 });
 document.getElementById('sel-cmap').addEventListener('change',function(){
-  cmap=CMAPS[this.value]||cmJet; updateViz();
+  cmap=CMAPS[this.value]||cmJet;
+  updateViz();
 });
 
-let wireVis=false;
+var wireVis=false;
 document.getElementById('btn-wire').addEventListener('click',function(){
-  wireVis=!wireVis; wireframe.visible=wireVis;
+  wireVis=!wireVis;
+  wireframe.visible=wireVis;
   this.classList.toggle('active',wireVis);
 });
-let cabVis=true;
+var cabVis=true;
 document.getElementById('btn-cables').addEventListener('click',function(){
-  cabVis=!cabVis; cGrp.visible=cabVis;
+  cabVis=!cabVis;
+  cGrp.visible=cabVis;
   this.classList.toggle('active',!cabVis);
 });
-document.getElementById('btn-reset').addEventListener('click',()=>{
-  camera.position.set(LX*1.2,(ZA+ZB)*1.0,-LY*1.5);
-  controls.target.set(LX/2,(ZA+ZB*2)/4,LY/2);
+document.getElementById('btn-reset').addEventListener('click',resetCam);
+
+function resetCam(){
+  camera.position.set(CAM_X,CAM_Y,CAM_Z);
+  controls.target.set(LX/2,(ZA+ZB)/2,LY/2);
   controls.update();
-});
+}
+
+// Toggle panel (mobile)
+function togglePanel(){
+  var p=document.getElementById('panel');
+  var t=document.getElementById('tog');
+  p.classList.toggle('hidden');
+  t.classList.toggle('show',p.classList.contains('hidden'));
+}
+window.togglePanel=togglePanel;
 
 // Raccourcis clavier
-const CK=['G0','G','WP','WS','SN','ELU1','ELU2'];
-document.addEventListener('keydown',e=>{
+var CK=['G0','G','WP','WS','SN','ELU1','ELU2'];
+document.addEventListener('keydown',function(e){
   if(e.key>='1'&&e.key<='7'){
-    const c=CK[+e.key-1];
-    document.querySelectorAll('[data-case]').forEach(b=>b.classList.toggle('active',b.dataset.case===c));
+    var c=CK[+e.key-1];
+    document.querySelectorAll('[data-case]').forEach(function(b){
+      b.classList.toggle('active',b.dataset.case===c);
+    });
     curCase=c; updateViz();
   }
   if(e.key.toLowerCase()==='w'){
@@ -533,36 +596,38 @@ document.addEventListener('keydown',e=>{
   }
 });
 
-// ═══════════════════════════════════════════════════
-//  REDIMENSIONNEMENT — compatible mobile
-// ═══════════════════════════════════════════════════
-function onResize(){
-  // Utiliser window.inner* pour contourner les bugs mobile avec flex/clientWidth
-  const panelW=document.getElementById('panel').offsetWidth||230;
-  const w=window.innerWidth-panelW;
-  const h=window.innerHeight;
-  if(w<=0||h<=0) return;
-  renderer.setSize(w,h,false); // false = ne pas toucher le style CSS
-  renderer.domElement.style.width=w+'px';
-  renderer.domElement.style.height=h+'px';
+// ══════════════════════════════════════════════════════════
+//  REDIMENSIONNEMENT — utilise window.innerWidth/Height
+//  (pas de flex, pas de clientWidth — 100 % fiable mobile)
+// ══════════════════════════════════════════════════════════
+function resize(){
+  var w=window.innerWidth, h=window.innerHeight;
+  renderer.setSize(w,h);   // Three.js gère le CSS du canvas
   camera.aspect=w/h;
   camera.updateProjectionMatrix();
 }
-window.addEventListener('resize',onResize);
-window.addEventListener('orientationchange',()=>setTimeout(onResize,200));
+window.addEventListener('resize',resize);
+window.addEventListener('orientationchange',function(){setTimeout(resize,350);});
 
-// ═══════════════════════════════════════════════════
-//  DÉMARRAGE — attendre que le layout soit calculé
-// ═══════════════════════════════════════════════════
-requestAnimationFrame(()=>{
-  onResize();
-  updateViz();
-  (function animate(){
-    requestAnimationFrame(animate);
-    controls.update();
-    renderer.render(scene,camera);
-  })();
-});
+// ══════════════════════════════════════════════════════════
+//  DÉMARRAGE
+// ══════════════════════════════════════════════════════════
+// Sur mobile (largeur < 600 px) : panel replié pour montrer le 3D d'emblée
+if(window.innerWidth<600){
+  document.getElementById('panel').classList.add('hidden');
+  document.getElementById('tog').classList.add('show');
+}
+
+resize();
+updateViz();
+
+(function animate(){
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene,camera);
+})();
+
+} // fin du bloc if(THREE défini)
 </script>
 </body>
 </html>
