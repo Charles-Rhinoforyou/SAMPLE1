@@ -1,0 +1,16 @@
+# =============================================================================
+#  FICHIER EXPORT CODE_ASTER - CALCUL PRINCIPAL
+#  Fichier : voile_PH_02_principal.export
+#  Objet   : Configuration lancement calcul structural complet
+# =============================================================================
+
+P actions make_etude
+P memory_limit 4096
+P time_limit 7200
+P version stable
+
+F comm 02_calcul_principal.comm D 1
+F mmed voile_PH.med D 20
+F rmed calcul_principal_result.med R 80
+F mess 02_calcul_principal.mess R 6
+F repe ./repe_out D 0 R 0

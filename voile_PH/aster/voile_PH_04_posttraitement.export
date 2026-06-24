@@ -1,0 +1,15 @@
+# =============================================================================
+#  FICHIER EXPORT CODE_ASTER - POST-TRAITEMENT
+#  Fichier : voile_PH_04_posttraitement.export
+# =============================================================================
+
+P actions make_etude
+P memory_limit 2048
+P time_limit 1800
+P version stable
+
+F comm 04_post_traitement.comm D 1
+F mmed voile_PH.med D 20
+F rmed calcul_principal_result.med D 80
+F mess 04_post_traitement.mess R 6
+F repe ./repe_out D 0 R 0

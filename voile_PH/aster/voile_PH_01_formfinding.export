@@ -1,0 +1,28 @@
+# =============================================================================
+#  FICHIER EXPORT CODE_ASTER - FORM-FINDING
+#  Fichier : voile_PH_01_formfinding.export
+#  Objet   : Configuration du lancement Code_Aster pour le form-finding
+#
+#  Usage   : as_run voile_PH_01_formfinding.export
+#            ou depuis Salome-Meca : Tools > Code_Aster > Run
+# =============================================================================
+
+P actions make_etude
+P memory_limit 2048
+P time_limit 3600
+P version stable
+
+# Fichier de commandes
+F comm 01_form_finding.comm D 1
+
+# Maillage d'entrée (MED)
+F mmed voile_PH.med D 20
+
+# Résultats MED (sortie)
+F rmed form_finding_result.med R 80
+
+# Fichier de messages (sortie texte)
+F mess 01_form_finding.mess R 6
+
+# Base JEVEUX (base de données Code_Aster)
+F repe ./repe_out D 0 R 0

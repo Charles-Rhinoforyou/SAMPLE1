@@ -1,0 +1,266 @@
+# =============================================================================
+#  PROJET : VOILE D'OMBRAGE PH - PARABOLOÏDE HYPERBOLIQUE
+#  Fichier : 01_form_finding.comm
+#  Objet   : Form-finding - recherche de la forme d'équilibre sous précontrainte
+#
+#  Méthode : Relaxation dynamique / analyse non-linéaire quasi-statique
+#            La membrane est soumise à sa précontrainte initiale (σ0) sur
+#            la géométrie approchée issue du maillage.
+#            L'état d'équilibre obtenu constitue la géométrie de référence
+#            pour tous les calculs ultérieurs.
+#
+#  Séquence : 1) Lecture maillage
+#             2) Modèle membrane seule (sans acier)
+#             3) Chargement = précontrainte uniforme chaîne + trame
+#             4) Analyse STAT_NON_LINE grands déplacements
+#             5) Export géométrie déformée → voile_PH_formfound.med
+# =============================================================================
+
+DEBUT(LANG='FR',
+      INFO=1,
+      IMPR_MACRO='NON')
+
+# =============================================================================
+#  LECTURE DU MAILLAGE
+# =============================================================================
+
+MAIL = LIRE_MAILLAGE(FORMAT='MED',
+                     UNITE=20,  # voile_PH.med
+                     VERI_MAIL=_F(VERIF='OUI'))
+
+# Création des groupes supplémentaires si nécessaire
+MAIL = DEFI_GROUP(reuse=MAIL,
+                  MAILLAGE=MAIL,
+                  CREA_GROUP_NO=(_F(NOM='BORD_PERIM',
+                                   UNION=('CABLE_AB','CABLE_BC',
+                                          'CABLE_CD','CABLE_DA')),))
+
+# =============================================================================
+#  MODÈLE ÉLÉMENTS FINIS - FORM-FINDING
+#  Membrane seule (câbles remplacés par CL de déplacement imposé)
+# =============================================================================
+
+MODFF = AFFE_MODELE(MAILLAGE=MAIL,
+                    AFFE=(
+                        # Membrane textile - éléments MEMBRANE (DKT généralisé)
+                        _F(GROUP_MA=('MEMBRANE',),
+                           PHENOMENE='MECANIQUE',
+                           MODELISATION='MEMBRANE'),
+                    ))
+
+# =============================================================================
+#  MATÉRIAU MEMBRANE - COMPORTEMENT ORTHOTROPE (ELAS_MEMBRANE)
+#  Notation Code_Aster : E1=chaîne, E2=trame
+#  Unités : N, mm, MPa
+#
+#  Conversion kN/m → MPa×mm :
+#    E_membranaire [kN/m] × 1000/1000 = [N/mm] = E × épaisseur_équivalente
+#    E_équiv [MPa] = E_membranaire [kN/m] / épaisseur_équivalente [mm]
+# =============================================================================
+
+# Paramètres membrane Serge Ferrari Précontraint 702
+E_CHAIN = 1200.0   # kN/m (module membranaire direction chaîne)
+E_TRAME = 850.0    # kN/m (module membranaire direction trame)
+G_MEMB  = 150.0    # kN/m (module de cisaillement)
+NU_CT   = 0.15     # coefficient de Poisson ν_chaîne/trame
+EPAIS_E = 0.9      # mm (épaisseur équivalente)
+
+# Conversion vers MPa (pour épaisseur équivalente en mm)
+E1_MPA = (E_CHAIN * 1000.0) / EPAIS_E   # MPa
+E2_MPA = (E_TRAME * 1000.0) / EPAIS_E   # MPa
+G12_MPA = (G_MEMB * 1000.0) / EPAIS_E   # MPa
+
+TEXTILE = DEFI_MATERIAU(
+    ELAS_ORTH=_F(
+        E_L   = E1_MPA,    # module longitudinal (chaîne) en MPa
+        E_T   = E2_MPA,    # module transversal (trame) en MPa
+        G_LT  = G12_MPA,   # module de cisaillement en MPa
+        NU_LT = NU_CT,     # coefficient de Poisson ν_LT
+        RHO   = 8.5e-7,    # masse volumique [kg/mm³] = 850 g/m² / 0.9mm
+    ))
+
+CHMAT = AFFE_MATERIAU(MAILLAGE=MAIL,
+                      AFFE=_F(GROUP_MA='MEMBRANE',
+                              MATER=TEXTILE))
+
+# =============================================================================
+#  CARACTÉRISTIQUES DES ÉLÉMENTS
+# =============================================================================
+
+CARA = AFFE_CARA_ELEM(
+    MODELE=MODFF,
+    MEMBRANE=_F(
+        GROUP_MA    = 'MEMBRANE',
+        EPAIS       = EPAIS_E,      # épaisseur équivalente (mm)
+        # Orientation des armatures chaîne/trame
+        # ANGL_REP : angle entre axe local 1 (chaîne) et axe global X
+        ANGL_REP_1  = (0.0, 0.0),   # direction chaîne = axe X global (0°)
+        ANGL_REP_2  = (90.0, 0.0),  # direction trame = axe Y global (90°)
+    ))
+
+# =============================================================================
+#  CONDITIONS AUX LIMITES - FORM-FINDING
+#  Les bords de la voile sont bloqués en déplacement (points d'ancrage)
+#  La géométrie des bords évolue selon les câbles périmétrique
+# =============================================================================
+
+CL_FF = AFFE_CHAR_MECA(
+    MODELE=MODFF,
+    DDL_IMPO=(
+        # Coins hauts : ancrés sur les têtes de mâts (déplacement nul)
+        _F(GROUP_NO=('COIN_A', 'COIN_C'),
+           DX=0.0, DY=0.0, DZ=0.0),
+        # Coins bas : ancrés sur les points d'ancrage au sol
+        _F(GROUP_NO=('COIN_B', 'COIN_D'),
+           DX=0.0, DY=0.0, DZ=0.0),
+        # Nœuds de bord : libres selon la surface mais bloqués
+        # perpendiculairement (simulation du câble de bord)
+        # Note : pour un form-finding complet, les bords doivent être libres
+        # tangentiellement et bloqués normalement (ici simplification)
+        _F(GROUP_NO='BORD_PERIM',
+           DX=0.0, DY=0.0, DZ=0.0),
+    ))
+
+# =============================================================================
+#  CHARGEMENT DE PRÉCONTRAINTE INITIALE
+#  σ0 = 3.0 kN/m dans les deux directions chaîne et trame
+#  En Code_Aster MEMBRANE : utilisation de SIGM_INIT ou FORCE_ARETE
+# =============================================================================
+
+# Précontrainte initiale en kN/m → N/mm
+SIGMA0_NMM = 3.0 * 1000.0 / 1000.0  # = 3.0 N/mm
+
+# Méthode : chargement par déformation initiale imposée équivalente
+# ε0 = σ0/E (chaîne et trame)
+EPS0_CHAIN = SIGMA0_NMM / E1_MPA
+EPS0_TRAME = SIGMA0_NMM / E2_MPA
+
+# Déformation initiale thermique équivalente (technique habituelle en form-finding)
+# ΔT × α = ε0 → ΔT = ε0/α  avec α = 1e-5 /°C
+ALPHA_EQUIV = 1.0e-5
+DT_CHAIN = EPS0_CHAIN / ALPHA_EQUIV
+DT_TRAME = EPS0_TRAME / ALPHA_EQUIV
+
+# Matériau avec dilatation thermique pour simulation précontrainte
+TEXTILE_TH = DEFI_MATERIAU(
+    ELAS_ORTH=_F(
+        E_L   = E1_MPA,
+        E_T   = E2_MPA,
+        G_LT  = G12_MPA,
+        NU_LT = NU_CT,
+        RHO   = 8.5e-7,
+        ALPHA_L = ALPHA_EQUIV,   # coefficient de dilatation chaîne
+        ALPHA_T = ALPHA_EQUIV,   # coefficient de dilatation trame
+    ))
+
+CHMAT_TH = AFFE_MATERIAU(MAILLAGE=MAIL,
+                          AFFE=_F(GROUP_MA='MEMBRANE', MATER=TEXTILE_TH))
+
+# Champ de température pour simuler la précontrainte
+# ΔT négatif → contraction → tension dans la membrane
+DT_PREC_CH = CREA_CHAMP(TYPE_CHAM='NOEU_TEMP_R',
+                          OPERATION='AFFE',
+                          MAILLAGE=MAIL,
+                          AFFE=_F(GROUP_MA='MEMBRANE',
+                                  NOM_CMP='TEMP',
+                                  VALE=-DT_CHAIN))  # contraction = tension
+
+# =============================================================================
+#  ANALYSE STAT_NON_LINE - FORM-FINDING
+#  Grands déplacements, grandes rotations
+# =============================================================================
+
+RESUDF = STAT_NON_LINE(
+    MODELE    = MODFF,
+    CHAM_MATER= CHMAT_TH,
+    CARA_ELEM = CARA,
+    EXCIT=(
+        _F(CHARGE=CL_FF),
+    ),
+    COMPORTEMENT=_F(
+        RELATION    = 'ELAS',
+        DEFORMATION = 'GROT_GDEP',   # grands déplacements + grandes rotations
+        GROUP_MA    = 'MEMBRANE',
+    ),
+    INCREMENT=_F(
+        LIST_INST = DEFI_LIST_REEL(
+            DEBUT=0.0,
+            INTERVALLE=_F(JUSQU_A=1.0, NOMBRE=20)
+        ),
+    ),
+    NEWTON=_F(
+        MATRICE      = 'TANGENTE',
+        REAC_ITER    = 1,
+        REAC_ITER_ELAS = 3,
+    ),
+    CONVERGENCE=_F(
+        ITER_GLOB_MAXI = 50,
+        RESI_RELA      = 1.0e-4,
+        ARRET          = 'OUI',
+    ),
+    SOLVEUR=_F(METHODE='MUMPS'),
+    RECH_LINEAIRE=_F(METHODE='CORDE', ITER_LINE_MAXI=5),
+)
+
+# =============================================================================
+#  POST-TRAITEMENT FORM-FINDING
+# =============================================================================
+
+# Calcul des champs de résultats
+RESUDF = CALC_CHAMP(reuse=RESUDF,
+                    RESULTAT=RESUDF,
+                    CONTRAINTE=('SIEF_ELGA', 'SIEF_ELNO'),
+                    DEFORMATION=('EPSI_ELGA',),
+                    FORCE=('REAC_NODA',))
+
+# Vérification des contraintes membranaires (absence de plis : σ > 0 partout)
+TAB_SIGM_FF = POST_RELEVE_T(
+    ACTION=_F(
+        INTITULE    = 'Contraintes form-finding',
+        GROUP_NO    = 'MEMBRANE',
+        RESULTAT    = RESUDF,
+        NOM_CHAM    = 'SIEF_ELNO',
+        TOUT_CMP    = 'OUI',
+        OPERATION   = 'EXTRACTION',
+        INST        = 1.0,
+    ))
+
+IMPR_TABLE(TABLE=TAB_SIGM_FF,
+           FORMAT='TABLEAU',
+           UNITE=6,
+           NOM_PARA=('NOEUD','INST','NXX','NYY','NXY'),
+           TITRE='Efforts membranaires form-finding (N/mm)')
+
+# Export des déplacements nodaux
+TAB_DEPL_FF = POST_RELEVE_T(
+    ACTION=_F(
+        INTITULE = 'Déplacements form-finding',
+        GROUP_NO = ('COIN_A','COIN_B','COIN_C','COIN_D'),
+        RESULTAT = RESUDF,
+        NOM_CHAM = 'DEPL',
+        TOUT_CMP = 'OUI',
+        OPERATION= 'EXTRACTION',
+        INST     = 1.0,
+    ))
+
+IMPR_TABLE(TABLE=TAB_DEPL_FF,
+           FORMAT='TABLEAU',
+           UNITE=6,
+           TITRE='Déplacements coins voile - form-finding (mm)')
+
+# Impression des résultats au format MED (pour visualisation)
+IMPR_RESU(FORMAT='MED',
+          UNITE=80,   # fichier sortie form_finding_result.med
+          RESU=_F(RESULTAT=RESUDF,
+                  NOM_CHAM=('DEPL','SIEF_ELNO'),
+                  INST=1.0))
+
+# Sauvegarde de l'état d'équilibre pour calcul suivant
+IMPR_RESU(FORMAT='RESULTAT',
+          RESU=_F(RESULTAT=RESUDF,
+                  NOM_CHAM='DEPL',
+                  INST=1.0,
+                  IMPR_COOR='OUI'),
+          UNITE=6)
+
+FIN()

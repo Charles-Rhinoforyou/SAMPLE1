@@ -1,0 +1,202 @@
+# =============================================================================
+#  PROJET : VOILE D'OMBRAGE PH - PARABOLOÏDE HYPERBOLIQUE
+#  Fichier : 03_flambement.comm
+#  Objet   : Calcul de flambement post-précontrainte (analyse de stabilité)
+#
+#  Méthode : Analyse des valeurs propres de flambement (MODE_FLAMB)
+#            sur la structure précontrainte (état G0 + G)
+#            Donne les facteurs de charge critique et les modes de flambage.
+#
+#  Utilisation : Fournit le facteur de sécurité au flambement des mâts
+#                et la stabilité globale de la structure tensile.
+# =============================================================================
+
+DEBUT(LANG='FR', INFO=1)
+
+# =============================================================================
+#  LECTURE MAILLAGE ET RÉUTILISATION DU MODÈLE
+# =============================================================================
+
+MAIL = LIRE_MAILLAGE(FORMAT='MED',
+                     UNITE=20,
+                     VERI_MAIL=_F(VERIF='OUI'))
+
+MAIL = DEFI_GROUP(reuse=MAIL, MAILLAGE=MAIL,
+    CREA_GROUP_MA=(
+        _F(NOM='TOUS_CABLES',
+           UNION=('CABLE_AB','CABLE_BC','CABLE_CD','CABLE_DA',
+                  'CABLE_ANC_B','CABLE_ANC_D')),
+        _F(NOM='TOUS_HAUBANS',
+           UNION=('HAUBAN_A1','HAUBAN_A2','HAUBAN_C1','HAUBAN_C2')),
+        _F(NOM='TOUS_MATS',
+           UNION=('MAT_A','MAT_C')),
+    ))
+
+MOD = AFFE_MODELE(MAILLAGE=MAIL,
+    AFFE=(
+        _F(GROUP_MA='MEMBRANE',    PHENOMENE='MECANIQUE', MODELISATION='MEMBRANE'),
+        _F(GROUP_MA='TOUS_MATS',   PHENOMENE='MECANIQUE', MODELISATION='POU_D_T'),
+        _F(GROUP_MA='TOUS_CABLES', PHENOMENE='MECANIQUE', MODELISATION='CABLE'),
+        _F(GROUP_MA='TOUS_HAUBANS',PHENOMENE='MECANIQUE', MODELISATION='CABLE'),
+    ))
+
+# Matériaux (identiques au calcul principal)
+EPAIS_E = 0.9
+E1_MPA  = 1200.0 * 1000.0 / 1000.0 / EPAIS_E
+E2_MPA  = 850.0  * 1000.0 / 1000.0 / EPAIS_E
+G12_MPA = 150.0  * 1000.0 / 1000.0 / EPAIS_E
+
+MAT_MEMB  = DEFI_MATERIAU(ELAS_ORTH=_F(E_L=E1_MPA, E_T=E2_MPA, G_LT=G12_MPA,
+                                        NU_LT=0.15, RHO=8.5e-7))
+MAT_ACIER = DEFI_MATERIAU(ELAS=_F(E=210000.0, NU=0.3, RHO=7.85e-6))
+MAT_CABLE = DEFI_MATERIAU(ELAS=_F(E=160000.0, NU=0.3, RHO=7.85e-6))
+
+CHMAT = AFFE_MATERIAU(MAILLAGE=MAIL,
+    AFFE=(
+        _F(GROUP_MA='MEMBRANE',     MATER=MAT_MEMB),
+        _F(GROUP_MA='TOUS_MATS',    MATER=MAT_ACIER),
+        _F(GROUP_MA='TOUS_CABLES',  MATER=MAT_CABLE),
+        _F(GROUP_MA='TOUS_HAUBANS', MATER=MAT_CABLE),
+    ))
+
+D_EXT = 139.7; E_PAR = 8.0
+CARA = AFFE_CARA_ELEM(MODELE=MOD,
+    MEMBRANE=_F(GROUP_MA='MEMBRANE', EPAIS=EPAIS_E,
+                ANGL_REP_1=(0.0,0.0), ANGL_REP_2=(90.0,0.0)),
+    POUTRE=(_F(GROUP_MA='TOUS_MATS', SECTION='CERCLE',
+               CARA=('R','EP'), VALE=(D_EXT/2.0, E_PAR)),),
+    CABLE=(
+        _F(GROUP_MA='TOUS_CABLES',  SECTION=201.06, FCX=0.0),
+        _F(GROUP_MA='TOUS_HAUBANS', SECTION=113.10, FCX=0.0),
+    ))
+
+# =============================================================================
+#  ÉTAT DE RÉFÉRENCE : Précontrainte + Poids propre
+#  Repris depuis le résultat du calcul 02 (lecture de la base résultats)
+# =============================================================================
+
+CL_APPUIS = AFFE_CHAR_MECA(MODELE=MOD,
+    DDL_IMPO=(
+        _F(GROUP_NO=('APPUI_MAT_A','APPUI_MAT_C'),
+           DX=0.0, DY=0.0, DZ=0.0, DRX=0.0, DRY=0.0, DRZ=0.0),
+        _F(GROUP_NO=('APPUI_B','APPUI_D',
+                     'ANCRAGE_A1','ANCRAGE_A2','ANCRAGE_C1','ANCRAGE_C2'),
+           DX=0.0, DY=0.0, DZ=0.0),
+    ))
+
+A_CAB_PERIM = 201.06   # mm²  (Ø16)
+A_HAUBAN    = 113.10   # mm²  (Ø12)
+EPS0_CAB = 15000.0 / (160000.0 * A_CAB_PERIM)
+EPS0_HAU = 8000.0  / (160000.0 * A_HAUBAN)
+EPS0_MEMB = 3.0 / E1_MPA
+
+PREC_INIT = AFFE_CHAR_MECA(MODELE=MOD,
+    EPSI_INIT=(
+        _F(GROUP_MA='MEMBRANE',
+           EPXX=-EPS0_MEMB, EPYY=-EPS0_MEMB, EPXY=0.0),
+        _F(GROUP_MA=('CABLE_AB','CABLE_BC','CABLE_CD','CABLE_DA',
+                     'CABLE_ANC_B','CABLE_ANC_D'),
+           EPXX=-EPS0_CAB),
+        _F(GROUP_MA='TOUS_HAUBANS', EPXX=-EPS0_HAU),
+    ))
+
+G_PP = AFFE_CHAR_MECA(MODELE=MOD,
+    PESANTEUR=_F(GRAVITE=9810.0, DIRECTION=(0.0, 0.0, -1.0)))
+
+Q_MEMB = 0.85 * 9.81 / 1e6
+G_MEMB_SURF = AFFE_CHAR_MECA(MODELE=MOD,
+    FORCE_ARETE=_F(GROUP_MA='MEMBRANE', FZ=-Q_MEMB))
+
+# ─── Calcul état initial (G0 + G) ─────────────────────────────────────────────
+L_INIT = DEFI_LIST_REEL(DEBUT=0.0, INTERVALLE=(
+    _F(JUSQU_A=1.0, NOMBRE=10),
+    _F(JUSQU_A=2.0, NOMBRE=10),
+))
+
+RESU_INIT = STAT_NON_LINE(
+    MODELE=MOD, CHAM_MATER=CHMAT, CARA_ELEM=CARA,
+    EXCIT=(
+        _F(CHARGE=CL_APPUIS),
+        _F(CHARGE=PREC_INIT,
+           FONC_MULT=DEFI_FONCTION(NOM_PARA='INST',
+               VALE=(0.0,0.0,1.0,1.0,2.0,1.0), PROL_DROITE='CONSTANT')),
+        _F(CHARGE=G_PP,
+           FONC_MULT=DEFI_FONCTION(NOM_PARA='INST',
+               VALE=(0.0,0.0,1.0,0.0,2.0,1.0), PROL_DROITE='CONSTANT')),
+        _F(CHARGE=G_MEMB_SURF,
+           FONC_MULT=DEFI_FONCTION(NOM_PARA='INST',
+               VALE=(0.0,0.0,1.0,0.0,2.0,1.0), PROL_DROITE='CONSTANT')),
+    ),
+    COMPORTEMENT=(
+        _F(RELATION='ELAS', DEFORMATION='GROT_GDEP', GROUP_MA='MEMBRANE'),
+        _F(RELATION='ELAS', DEFORMATION='GROT_GDEP', GROUP_MA='TOUS_MATS'),
+        _F(RELATION='CABLE', DEFORMATION='PETIT',
+           GROUP_MA=('TOUS_CABLES','TOUS_HAUBANS')),
+    ),
+    INCREMENT=_F(LIST_INST=L_INIT),
+    NEWTON=_F(MATRICE='TANGENTE', REAC_ITER=1),
+    CONVERGENCE=_F(ITER_GLOB_MAXI=50, RESI_RELA=1e-4),
+    SOLVEUR=_F(METHODE='MUMPS'),
+)
+
+# =============================================================================
+#  CALCUL DE FLAMBEMENT - ANALYSE DES VALEURS PROPRES
+#  Charge de référence : vent pression (cas le plus critique pour les mâts)
+# =============================================================================
+
+# Charge de référence pour le flambement (vent pression unitaire)
+Q_VENT_REF = 0.70 * 0.60 / 1.0e6   # N/mm² (valeur caractéristique complète)
+
+CHARGE_FLAMB = AFFE_CHAR_MECA(MODELE=MOD,
+    FORCE_ARETE=_F(GROUP_MA='MEMBRANE', FZ=-Q_VENT_REF))
+
+# Analyse de stabilité : calcul de la matrice de rigidité géométrique
+# sur l'état déformé précontraint (t=2.0 : G0+G)
+
+MODE_FLAMB = CALC_MODES(
+    OPTION     = 'PLUS_PETITE',   # modes de plus petit facteur critique
+    MATR_RIGI  = CO('K_MNL'),     # matrice de rigidité non-linéaire
+    MATR_MASS  = CO('KG'),        # matrice de rigidité géométrique
+    CALC_FREQ  = _F(
+        OPTION  = 'BANDE',
+        FREQ    = (0.0, 10.0),    # chercher λ dans [0, 10] (facteurs critiques)
+        NMAX_FREQ = 5,            # 5 premiers modes
+    ),
+    # Définir l'état de référence pour la matrice géométrique
+    SOLVEUR_MODAL = _F(
+        METHODE  = 'SORENSEN',
+        NMAX_ITER = 200,
+        PREC     = 1e-4,
+    ),
+)
+
+# =============================================================================
+#  POST-TRAITEMENT FLAMBEMENT
+# =============================================================================
+
+IMPR_RESU(FORMAT='MED', UNITE=80,
+    RESU=_F(RESULTAT=MODE_FLAMB,
+            NOM_CHAM='DEPL',
+            TOUT_ORDRE='OUI',
+            IMPR_NOM_VARI='OUI'))
+
+# Tableau des facteurs critiques (λ_cr)
+TAB_FLAMB = POST_RELEVE_T(
+    ACTION=_F(
+        INTITULE = 'Facteurs critiques de flambement',
+        RESULTAT = MODE_FLAMB,
+        NOM_CHAM = 'DEPL',
+        TOUT_ORDRE = 'OUI',
+        GROUP_NO = ('COIN_A','COIN_C'),   # coins des mâts
+        TOUT_CMP = 'OUI',
+        OPERATION= 'EXTRACTION',
+    ))
+
+IMPR_TABLE(TABLE=TAB_FLAMB, FORMAT='TABLEAU', UNITE=6,
+           TITRE='Facteurs critiques de flambement λ_cr')
+
+# Note : le facteur de sécurité au flambement est λ_cr / γM1
+# Pour l'EN 1993-1-1 : γM1 = 1.0 pour les ELU
+# Recommandation : λ_cr ≥ 3.0 pour voiles d'ombrage
+
+FIN()

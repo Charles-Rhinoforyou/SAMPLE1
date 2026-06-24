@@ -1,0 +1,15 @@
+# =============================================================================
+#  FICHIER EXPORT CODE_ASTER - FLAMBEMENT
+#  Fichier : voile_PH_03_flambement.export
+# =============================================================================
+
+P actions make_etude
+P memory_limit 2048
+P time_limit 3600
+P version stable
+
+F comm 03_flambement.comm D 1
+F mmed voile_PH.med D 20
+F rmed flambement_result.med R 80
+F mess 03_flambement.mess R 6
+F repe ./repe_out D 0 R 0

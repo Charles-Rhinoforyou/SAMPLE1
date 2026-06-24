@@ -1,0 +1,298 @@
+# =============================================================================
+#  PROJET : VOILE D'OMBRAGE PH - PARABOLOÏDE HYPERBOLIQUE
+#  Fichier : 04_post_traitement.comm
+#  Objet   : Post-traitement complet - dossier de vérification structure
+#
+#  Extrait pour chaque cas de charge et chaque combinaison :
+#    1) Déplacements nodaux (Ux, Uy, Uz, |U|)
+#    2) Contraintes membranaires (Nxx, Nyy, Nxy) → vérif absence plis
+#    3) Efforts dans les câbles (tension, déformation)
+#    4) Efforts dans les poteaux (N, Vy, Vz, Mt, Mfy, Mfz)
+#    5) Réactions d'appuis (Fx, Fy, Fz, Mx, My, Mz)
+#    6) Carte de tension membrane → zones tendues vs détendue
+#    7) Facteurs de sécurité EN 1990 / EN 1993 / EN 1794-3
+# =============================================================================
+
+DEBUT(LANG='FR', INFO=1)
+
+# Lecture maillage
+MAIL = LIRE_MAILLAGE(FORMAT='MED', UNITE=20, VERI_MAIL=_F(VERIF='OUI'))
+MAIL = DEFI_GROUP(reuse=MAIL, MAILLAGE=MAIL,
+    CREA_GROUP_MA=(
+        _F(NOM='TOUS_CABLES', UNION=('CABLE_AB','CABLE_BC','CABLE_CD','CABLE_DA',
+                                     'CABLE_ANC_B','CABLE_ANC_D')),
+        _F(NOM='TOUS_HAUBANS', UNION=('HAUBAN_A1','HAUBAN_A2','HAUBAN_C1','HAUBAN_C2')),
+        _F(NOM='TOUS_MATS',   UNION=('MAT_A','MAT_C')),
+    ))
+
+# Lecture résultats depuis le calcul 02
+RESU = LIRE_RESU(FORMAT='MED',
+                  UNITE=80,
+                  TYPE_RESU='EVOL_NOLI',
+                  MODELE=MAIL,
+                  NOM_CHAM=('DEPL','SIEF_ELNO','EFGE_ELNO','REAC_NODA'))
+
+# Instants (cf. calcul 02)
+T_G0 = 1.0  # précontrainte
+T_G  = 2.0  # + poids propre
+T_WP = 3.0  # + vent pression
+T_WS = 4.0  # + vent succion
+T_SN = 5.0  # + neige
+T_TP = 6.0  # + température+
+T_TM = 7.0  # + température-
+
+# =============================================================================
+#  1 - DÉPLACEMENTS NODAUX
+# =============================================================================
+
+print("=" * 60)
+print("DÉPLACEMENTS NODAUX (mm)")
+print("=" * 60)
+
+for inst, label in [(T_G, "G0+G"), (T_WP, "G0+G+Vent+"),
+                     (T_WS, "G0+G+Vent-"), (T_SN, "G0+G+Neige"),
+                     (T_TP, "G0+G+T+"), (T_TM, "G0+G+T-")]:
+
+    TAB_DEPL = POST_RELEVE_T(ACTION=_F(
+        INTITULE = f'Déplacements {label}',
+        GROUP_NO = ('COIN_A','COIN_B','COIN_C','COIN_D'),
+        RESULTAT = RESU,
+        NOM_CHAM = 'DEPL',
+        TOUT_CMP = 'OUI',
+        OPERATION= 'EXTRACTION',
+        INST     = inst,
+    ))
+    IMPR_TABLE(TABLE=TAB_DEPL, FORMAT='TABLEAU', UNITE=6,
+               TITRE=f'Déplacements coins voile - CAS : {label} [mm]')
+
+# Déflexion maximale sur la membrane
+for inst, label in [(T_WP, "Vent pression"), (T_WS, "Vent succion"),
+                     (T_SN, "Neige")]:
+    TAB_DEPL_MAX = POST_RELEVE_T(ACTION=_F(
+        INTITULE = f'Déflexion max membrane {label}',
+        GROUP_NO = 'MEMBRANE',
+        RESULTAT = RESU,
+        NOM_CHAM = 'DEPL',
+        NOM_CMP  = ('DX','DY','DZ'),
+        OPERATION= 'EXTREMA',
+        INST     = inst,
+    ))
+    IMPR_TABLE(TABLE=TAB_DEPL_MAX, FORMAT='TABLEAU', UNITE=6,
+               TITRE=f'Déflexion max membrane - {label} [mm]')
+
+# =============================================================================
+#  2 - CONTRAINTES MEMBRANAIRES + VÉRIFICATION ABSENCE DE PLIS
+#
+#  Critère de plissement : la structure textile ne peut pas reprendre
+#  de compression. Condition : Nmin = min(N1, N2) > 0 partout
+#  (N1, N2 = efforts principaux dans la membrane)
+#
+#  EN 1794-3 / AFNOR DTU : σ_min ≥ σ0_résiduelle > 0
+# =============================================================================
+
+print("=" * 60)
+print("CONTRAINTES MEMBRANAIRES ET VÉRIFICATION DES PLIS")
+print("=" * 60)
+
+for inst, label in [(T_G0,"G0"), (T_G,"G0+G"), (T_WP,"G0+G+Vent+"),
+                     (T_WS,"G0+G+Vent-"), (T_SN,"G0+G+Neige")]:
+
+    # Efforts membranaires Nxx, Nyy, Nxy (N/mm → × épaisseur = N/mm force/largeur)
+    TAB_SIGM = POST_RELEVE_T(ACTION=_F(
+        INTITULE = f'Efforts membranaires {label}',
+        GROUP_NO = 'MEMBRANE',
+        RESULTAT = RESU,
+        NOM_CHAM = 'SIEF_ELNO',
+        NOM_CMP  = ('NXX','NYY','NXY'),
+        OPERATION= 'EXTREMA',
+        INST     = inst,
+    ))
+    IMPR_TABLE(TABLE=TAB_SIGM, FORMAT='TABLEAU', UNITE=6,
+               TITRE=f'Extrema efforts membranaires - {label} [N/mm]')
+
+# Calcul des efforts principaux (valeurs propres du tenseur N)
+# Note : Code_Aster calcule PRIN_MEMBRANE si disponible, sinon calcul manuel Python
+# N1 = (Nxx+Nyy)/2 + sqrt(((Nxx-Nyy)/2)²+Nxy²)
+# N2 = (Nxx+Nyy)/2 - sqrt(((Nxx-Nyy)/2)²+Nxy²)
+# Plissement si N2 < 0
+
+TAB_SIGM_PREC = POST_RELEVE_T(ACTION=_F(
+    INTITULE = 'Efforts principaux précontrainte seule',
+    GROUP_NO = 'MEMBRANE',
+    RESULTAT = RESU,
+    NOM_CHAM = 'SIEF_ELNO',
+    NOM_CMP  = ('NXX','NYY','NXY'),
+    OPERATION= 'EXTRACTION',
+    INST     = T_G0,
+))
+
+IMPR_TABLE(TABLE=TAB_SIGM_PREC, FORMAT='TABLEAU', UNITE=6,
+           NOM_PARA=('NOEUD','INST','NXX','NYY','NXY'),
+           TITRE='Efforts membranaires état précontraint N/mm')
+
+# =============================================================================
+#  3 - EFFORTS DANS LES CÂBLES (TENSION)
+# =============================================================================
+
+print("=" * 60)
+print("EFFORTS DANS LES CÂBLES (N)")
+print("=" * 60)
+
+for inst, label in [(T_G0,"G0"), (T_WP,"G0+G+Vent+"),
+                     (T_WS,"G0+G+Vent-"), (T_SN,"G0+G+Neige")]:
+
+    for grp, nom in [('CABLE_AB','Câble AB'), ('CABLE_BC','Câble BC'),
+                     ('CABLE_CD','Câble CD'), ('CABLE_DA','Câble DA'),
+                     ('TOUS_HAUBANS','Haubans')]:
+        TAB_CABLE = POST_RELEVE_T(ACTION=_F(
+            INTITULE = f'{nom} - {label}',
+            GROUP_MA = grp,
+            RESULTAT = RESU,
+            NOM_CHAM = 'SIEF_ELNO',
+            NOM_CMP  = ('NXX',),   # effort normal câble
+            OPERATION= 'EXTREMA',
+            INST     = inst,
+        ))
+        IMPR_TABLE(TABLE=TAB_CABLE, FORMAT='TABLEAU', UNITE=6,
+                   TITRE=f'Tension {nom} - {label} [N]')
+
+# Vérification câbles : T_max < Trd = A × fuk / γM2
+# fuk = 1570 MPa, γM2 = 1.25 (EN 1993-1-11)
+A_CAB = 201.06     # mm² (Ø16)
+A_HAU = 113.10     # mm² (Ø12)
+FUK   = 1570.0     # MPa
+GM2   = 1.25
+TRD_CAB = A_CAB * FUK / GM2    # N
+TRD_HAU = A_HAU * FUK / GM2    # N
+
+print(f"\n>>> Résistances caractéristiques câbles :")
+print(f"    Câbles périm. Ø16 : Trd = {TRD_CAB/1000:.1f} kN")
+print(f"    Haubans      Ø12 : Trd = {TRD_HAU/1000:.1f} kN")
+
+# =============================================================================
+#  4 - EFFORTS DANS LES POTEAUX (MÂTS)
+# =============================================================================
+
+print("=" * 60)
+print("EFFORTS INTÉRIEURS POTEAUX")
+print("=" * 60)
+
+for inst, label in [(T_G,"G0+G"), (T_WP,"G0+G+Vent+"),
+                     (T_WS,"G0+G+Vent-"), (T_SN,"G0+G+Neige")]:
+
+    for grp, nom in [('MAT_A','Mât A'), ('MAT_C','Mât C')]:
+        TAB_MAT = POST_RELEVE_T(ACTION=_F(
+            INTITULE = f'{nom} - efforts - {label}',
+            GROUP_MA = grp,
+            RESULTAT = RESU,
+            NOM_CHAM = 'EFGE_ELNO',
+            NOM_CMP  = ('N','VY','VZ','MT','MFY','MFZ'),
+            OPERATION= 'EXTREMA',
+            INST     = inst,
+        ))
+        IMPR_TABLE(TABLE=TAB_MAT, FORMAT='TABLEAU', UNITE=6,
+                   TITRE=f'Efforts intérieurs {nom} - {label} [N, N.mm]')
+
+# Vérification poteau CHS 139.7×8 S355 (EN 1993-1-1)
+D_EXT  = 139.7; E_PAR = 8.0
+A_MAT  = 3.14159 / 4.0 * (D_EXT**2 - (D_EXT - 2*E_PAR)**2)   # mm²
+IY_MAT = 3.14159 / 64.0 * (D_EXT**4 - (D_EXT - 2*E_PAR)**4)  # mm⁴
+W_EL   = 2.0 * IY_MAT / D_EXT   # module élastique mm³
+FY     = 355.0   # MPa S355
+GM0    = 1.0     # γM0
+
+NRD = A_MAT * FY / GM0 / 1000.0    # kN
+MRD = W_EL * FY / GM0 / 1e6        # kN.m
+
+print(f"\n>>> Résistances CHS 139.7×8 S355 :")
+print(f"    Section A = {A_MAT:.1f} mm²")
+print(f"    Nrd = {NRD:.1f} kN  (compression axiale)")
+print(f"    Mrd = {MRD:.2f} kN.m (flexion)")
+
+# =============================================================================
+#  5 - RÉACTIONS D'APPUIS
+# =============================================================================
+
+print("=" * 60)
+print("RÉACTIONS AUX APPUIS")
+print("=" * 60)
+
+for inst, label in [(T_G,"G0+G"), (T_WP,"G0+G+Vent+"),
+                     (T_WS,"G0+G+Vent-"), (T_SN,"G0+G+Neige")]:
+
+    TAB_REAC = POST_RELEVE_T(ACTION=_F(
+        INTITULE = f'Réactions appuis - {label}',
+        GROUP_NO = 'TOUS_APPUIS_NOE',
+        RESULTAT = RESU,
+        NOM_CHAM = 'REAC_NODA',
+        NOM_CMP  = ('DX','DY','DZ'),
+        OPERATION= 'EXTRACTION',
+        INST     = inst,
+    ))
+    IMPR_TABLE(TABLE=TAB_REAC, FORMAT='TABLEAU', UNITE=6,
+               NOM_PARA=('NOEUD','INST','DX','DY','DZ'),
+               TITRE=f'Réactions aux appuis - {label} [N]')
+
+    # Résultante globale (équilibre)
+    TAB_REAC_SUM = POST_RELEVE_T(ACTION=_F(
+        INTITULE = f'Résultante appuis - {label}',
+        GROUP_NO = 'TOUS_APPUIS_NOE',
+        RESULTAT = RESU,
+        NOM_CHAM = 'REAC_NODA',
+        NOM_CMP  = ('DX','DY','DZ'),
+        OPERATION= 'MOYENNE_ARITH',
+        INST     = inst,
+    ))
+    IMPR_TABLE(TABLE=TAB_REAC_SUM, FORMAT='TABLEAU', UNITE=6,
+               TITRE=f'Résultante réactions - {label} [N]')
+
+# =============================================================================
+#  6 - CARTE DE TENSION MEMBRANE (ParaVis)
+# =============================================================================
+
+# Export MED enrichi pour visualisation ParaVis
+# Calcul des efforts principaux (N1_min pour vérification plissement)
+RESU = CALC_CHAMP(reuse=RESU, RESULTAT=RESU,
+    CONTRAINTE=('SIEF_ELGA',),
+    INST=(T_G0, T_G, T_WP, T_WS, T_SN),
+)
+
+IMPR_RESU(FORMAT='MED', UNITE=80,
+    RESU=_F(
+        RESULTAT = RESU,
+        NOM_CHAM = ('DEPL','SIEF_ELNO','EFGE_ELNO','REAC_NODA'),
+        INST     = (T_G0, T_G, T_WP, T_WS, T_SN, T_TP, T_TM),
+    ))
+
+# =============================================================================
+#  7 - COMBINAISONS EUROCODES ET FACTEURS DE SÉCURITÉ
+# =============================================================================
+
+print("\n" + "=" * 60)
+print("COMBINAISONS ELU/ELS EUROCODES - RÉSUMÉ")
+print("=" * 60)
+
+# Coefficients EN 1990 Tableau A1.2(B)
+print("""
+COMBINAISONS RETENUES :
+  ELU1  : 1.35×G + 1.50×Wp                 (vent pression dominant)
+  ELU2  : 1.35×G + 1.50×Ws                 (succion dominante - arrachement)
+  ELU3  : 1.35×G + 1.50×S + 0.60×1.50×Wp  (neige dominante + vent combiné)
+  ELU4  : 1.00×G + 1.50×Ws                 (uplift - vérif ancrages)
+  ELS_C : 1.00×G + 1.00×Wp                 (combinaison caractéristique)
+  ELS_F : 1.00×G + 0.60×Wp                 (combinaison fréquente)
+
+VÉRIFICATIONS REQUISES :
+  □  Membrane  : N_min > 0 (absence de plis) sous ELS_F
+  □  Membrane  : N_max < N_rup,k/γM (résistance) sous ELU
+  □  Câbles    : T_max < Trd = A×fuk/γM2 sous ELU2
+  □  Mâts      : interaction N+M < 1.0 selon EN1993-1-1 §6.2 sous ELU
+  □  Flambement: λ_cr ≥ 3.0 (post-précontrainte) - cf. calcul 03
+  □  Ancrages  : F_arrach < capacité fondation sous ELU4
+  □  Déformation: δ_max < L/50 = {:.0f}mm (confort) sous ELS_F
+""".format(6000.0 / 50.0))
+
+print("Post-traitement terminé. Voir résultats dans les tableaux ci-dessus")
+print("et dans le fichier MED pour visualisation ParaVis / GMSH.")
+
+FIN()
