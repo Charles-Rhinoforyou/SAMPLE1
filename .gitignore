@@ -1,5 +1,7 @@
 __pycache__/
 *.pyc
 *.pyo
-voile_PH/resultats/
+voile_PH/resultats/*.med
+voile_PH/resultats/*.mess
+voile_PH/resultats/*.repe
 voile_PH/aster/repe_out/
