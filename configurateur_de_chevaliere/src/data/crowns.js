@@ -1,108 +1,164 @@
 /**
  * crowns.js — Couronnes / timbres heraldiques par titre.
  *
- * Chaque couronne est un dessin vectoriel monochrome (or) defini dans un repere
- * `0 0 120 60` (large, peu haut), pense pour etre pose AU-DESSUS de l'ecu et mis
- * a l'echelle selon sa largeur. Le point d'ancrage horizontal est le centre.
+ * Inspire de la planche "Les couronnes heraldiques" (systeme francais). Chaque
+ * rang se distingue par son ornementation, du plus bas au plus haut :
+ *   - baron   : tortil (cordon perle) autour d'un cercle simple ;
+ *   - vicomte : cercle a quelques grosses perles sur pointes ;
+ *   - comte   : cercle a rang de perles sur pointes (nombreuses) ;
+ *   - marquis : fleurons alternes avec des trefles de perles ;
+ *   - duc     : cercle a fleurons (feuilles), sans perles ;
+ *   - prince  : couronne FERMEE a fleurons + arches + globe ;
+ *   - royale  : couronne fermee a arches + croisette sommitale (roi).
  *
- * Les couronnes sont stylisees mais respectent la hierarchie des rangs (nombre de
- * fleurons/perles croissant avec le titre).
+ * Repere `0 0 120 60` (large, peu haut), centre X = 60. Rendu monochrome (or),
+ * pose au-dessus de l'ecu et mis a l'echelle selon sa largeur.
  */
 
 export const CROWN_VIEWBOX = '0 0 120 60';
+
+const BAND_TOP = 40; // haut du bandeau
+const BAND_BOT = 52; // bas du bandeau
 
 export const CROWNS = {
   aucune: { nom: 'Aucune', pathData: null },
 
   baron: {
     nom: 'Baron',
-    // Tortil de baron : bandeau avec rang de perles.
-    pathData:
-      'M18,40 L102,40 L102,52 L18,52 Z ' +
-      perles([28, 40, 52, 64, 76, 88, 100 - 8], 34, 4)
+    // Cercle + tortil (rang de perles enfilees) sur le bandeau.
+    pathData: bande() + rowPearls(rangeXs(28, 92, 8), 46, 2.6)
   },
 
   vicomte: {
     nom: 'Vicomte',
+    // Cercle a 3 grosses perles sur courtes pointes + 2 petites.
     pathData:
-      'M18,40 L102,40 L102,52 L18,52 Z ' +
-      perles([34, 52, 70, 86], 33, 5)
+      bande() +
+      pointPearls([38, 60, 82], 4, 11) +
+      pointPearls([26, 94], 2.6, 7)
   },
 
   comte: {
     nom: 'Comte',
-    // Cercle a rang de perles sur pointes.
-    pathData:
-      'M16,40 L104,40 L104,52 L16,52 Z ' +
-      pointesPerles(9, 16, 104, 40, 6)
+    // Cercle a rang de perles sur pointes (9 perles).
+    pathData: bande() + pointPearls(rangeXs(20, 100, 9), 3, 9)
   },
 
   marquis: {
     nom: 'Marquis',
-    // Fleurons alternes avec touffes de perles.
+    // Fleurons alternes avec des trefles de 3 perles.
     pathData:
-      'M14,40 L106,40 L106,52 L14,52 Z ' +
-      fleurons([26, 60, 94], 40, 12) +
-      pointesPerles(4, 14, 106, 40, 4)
+      bande() +
+      fleurons([28, 60, 92], 15) +
+      trefles([44, 76])
   },
 
   duc: {
     nom: 'Duc',
-    // Couronne a fleurons (feuilles) sur le cercle.
-    pathData:
-      'M12,40 L108,40 L108,52 L12,52 Z ' +
-      fleurons([24, 42, 60, 78, 96], 40, 14)
+    // Cercle a fleurons (feuilles), sans perles.
+    pathData: bande() + fleurons([24, 42, 60, 78, 96], 16)
   },
 
   prince: {
     nom: 'Prince',
-    // Couronne fermee : cercle a fleurons + demi-cercles (bonnet).
+    // Couronne fermee : fleurons + 2 arches + globe.
     pathData:
-      'M12,40 L108,40 L108,52 L12,52 Z ' +
-      fleurons([24, 48, 72, 96], 40, 15) +
-      'M20,40 Q60,4 100,40 Z'
+      bande() +
+      fleurons([26, 60, 94], 13) +
+      arch(20, 100, 8) +
+      arch(38, 82, 4) +
+      circle(60, 8, 3)
   },
 
   royale: {
-    nom: 'Royale',
-    // Couronne fermee a arches et globe.
+    nom: 'Royale (roi)',
+    // Couronne fermee : fleurons + 3 arches + globe + croisette.
     pathData:
-      'M10,40 L110,40 L110,52 L10,52 Z ' +
-      fleurons([22, 44, 60, 76, 98], 40, 16) +
-      'M18,40 Q60,0 102,40 ' + // arche
-      'M60,8 L60,2 M56,5 L64,5' // croisette sommitale
+      bande() +
+      fleurons([24, 44, 60, 76, 96], 13) +
+      arch(18, 102, 9) +
+      arch(34, 86, 6) +
+      arch(50, 70, 4) +
+      circle(60, 9, 3) +
+      // Croisette sommitale (coordonnees positives pour rester dans le viewBox).
+      'M58.5,6 L61.5,6 L61.5,3 L64,3 L64,1 L61.5,1 L61.5,0 L58.5,0 L58.5,1 L56,1 L56,3 L58.5,3 Z'
   }
 };
 
-/** Ordre d'affichage (rang croissant). */
 export const CROWN_ORDER = ['aucune', 'baron', 'vicomte', 'comte', 'marquis', 'duc', 'prince', 'royale'];
 
 // ---------- Fabriques de motifs ----------
 
+/** Bandeau (cercle) legerement galbe. */
+function bande(x0 = 14, x1 = 106) {
+  return (
+    `M${x0},${BAND_TOP} Q60,${BAND_TOP - 3} ${x1},${BAND_TOP} ` +
+    `L${x1},${BAND_BOT} Q60,${BAND_BOT - 3} ${x0},${BAND_BOT} Z `
+  );
+}
+
+/** Abscisses reparties uniformement (n points entre x0 et x1). */
+function rangeXs(x0, x1, n) {
+  const xs = [];
+  for (let i = 0; i < n; i++) xs.push(x0 + ((x1 - x0) * i) / (n - 1));
+  return xs;
+}
+
 /** Rang de perles (petits cercles) a une hauteur donnee. */
-function perles(xs, cy, r) {
-  return xs.map((x) => circle(x, cy, r)).join(' ');
+function rowPearls(xs, cy, r) {
+  return xs.map((x) => circle(x, cy, r)).join(' ') + ' ';
 }
 
-/** Perles au sommet de pointes reparties entre x0 et x1. */
-function pointesPerles(count, x0, x1, baseY, r) {
-  let s = '';
-  for (let i = 0; i < count; i++) {
-    const x = x0 + ((x1 - x0) * (i + 0.5)) / count;
-    s += `M${x - 3},${baseY} L${x},${baseY - 10} L${x + 3},${baseY} Z `;
-    s += circle(x, baseY - 13, r) + ' ';
-  }
-  return s;
+/** Perles au sommet de pointes partant du haut du bandeau. */
+function pointPearls(xs, r, len) {
+  return (
+    xs
+      .map((x) => {
+        const spike = `M${x - 2.4},${BAND_TOP} L${x},${BAND_TOP - len} L${x + 2.4},${BAND_TOP} Z`;
+        return `${spike} ${circle(x, BAND_TOP - len - r + 1.5, r)}`;
+      })
+      .join(' ') + ' '
+  );
 }
 
-/** Fleurons (feuilles trilobees stylisees) a des abscisses donnees. */
-function fleurons(xs, baseY, height) {
-  return xs
-    .map((x) => {
-      const t = baseY - height;
-      return `M${x - 8},${baseY} C${x - 8},${t + 4} ${x - 4},${t} ${x},${t} C${x + 4},${t} ${x + 8},${t + 4} ${x + 8},${baseY} Z`;
-    })
-    .join(' ');
+/** Fleurons (feuilles trilobees) a des abscisses donnees. */
+function fleurons(xs, h) {
+  return (
+    xs
+      .map((x) => {
+        const b = BAND_TOP;
+        const t = b - h;
+        return (
+          `M${x},${t} ` +
+          `C${x - 2.5},${t + 3} ${x - 8},${t + 4} ${x - 8},${b - 1} ` +
+          `C${x - 8},${b - 6} ${x - 3},${b - 5} ${x},${b - 8} ` +
+          `C${x + 3},${b - 5} ${x + 8},${b - 6} ${x + 8},${b - 1} ` +
+          `C${x + 8},${t + 4} ${x + 2.5},${t + 3} ${x},${t} Z`
+        );
+      })
+      .join(' ') + ' '
+  );
+}
+
+/** Trefles de 3 perles (motif du marquis) a des abscisses donnees. */
+function trefles(xs) {
+  return (
+    xs
+      .map((x) => {
+        const b = BAND_TOP;
+        return `${circle(x, b - 10, 2.6)} ${circle(x - 5, b - 5, 2.6)} ${circle(x + 5, b - 5, 2.6)}`;
+      })
+      .join(' ') + ' '
+  );
+}
+
+/** Arche fine (couronne fermee) du bandeau (x0) au sommet et vers (x1). */
+function arch(x0, x1, topY) {
+  const cx = (x0 + x1) / 2;
+  return (
+    `M${x0},${BAND_TOP} Q${cx},${topY} ${x1},${BAND_TOP} ` +
+    `L${x1 - 3.5},${BAND_TOP} Q${cx},${topY + 5} ${x0 + 3.5},${BAND_TOP} Z `
+  );
 }
 
 function circle(cx, cy, r) {
@@ -110,13 +166,10 @@ function circle(cx, cy, r) {
 }
 
 /**
- * Resout une couronne par id (gere l'alias prince).
+ * Resout une couronne par id.
  * @param {string} id
  * @returns {{nom:string, pathData:string|null}}
  */
 export function getCrown(id) {
-  const c = CROWNS[id];
-  if (!c) return CROWNS.aucune;
-  if (c.alias) return CROWNS[c.alias];
-  return c;
+  return CROWNS[id] || CROWNS.aucune;
 }
