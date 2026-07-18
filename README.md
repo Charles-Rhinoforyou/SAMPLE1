@@ -86,6 +86,14 @@ pnpm dev:web              # Expo web (http://localhost:8081)
 pnpm dev:android          # ouvre sur émulateur / appareil (Expo Go ou build dev)
 ```
 
+## Déploiement (obtenir les liens site + app)
+
+Guide complet : **[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)**.
+
+- **Site web** : export Expo web statique → Vercel (`apps/client/vercel.json`) ou Netlify (`apps/client/netlify.toml`). Définir `EXPO_PUBLIC_API_URL`.
+- **API + base** : `apps/api/Dockerfile` (contexte = racine) ou blueprint Render (`render.yaml`, API + PostgreSQL, migrations auto au démarrage).
+- **Android** : `eas build -p android --profile preview` pour un **APK** installable (lien immédiat, sans store), ou `--profile production` + `eas submit` pour le **Play Store**.
+
 ## Publication sur les stores (Android / iOS)
 
 L'app est **prête à publier** via **EAS Build** (config dans `apps/client/eas.json`,
@@ -192,5 +200,5 @@ Cette contrainte **n'est pas implémentée** dans le code (feu vert requis). Un 
 - [x] **Phase 4 — Cœur métier** : création d'annonce (heures + taux + **montant auto** calculé côté partagé), découverte/filtre des annonces ouvertes, candidatures, **choix du candidat** (attribution + refus des autres en transaction), transitions de statut (`OUVERTE → ATTRIBUEE → EN_COURS → TERMINEE`, annulation) gardées par la machine à états. Écrans : liste/filtre, création (montant en direct), détail (candidats + choix + suivi).
 - [x] **Phase 5 — Notation & messagerie** : avis 1–5 + commentaire après `TERMINEE` (demandeur ↔ travailleur, réciprocité, un avis par auteur/tâche), **recalcul de la note moyenne** du profil ; messagerie légère demandeur ↔ candidat retenu (REST + **WebSocket temps réel** par tâche, auth par token). Écrans : notation (étoiles), fil de discussion.
 - [x] **Phase 6 — Paiement Stripe Connect (mode test)** : modèle **destination charge + capture différée** derrière une interface `PaymentProvider` (impl. Stripe réelle + `MockPaymentProvider` par défaut sans clé). Onboarding **Connect Express** dès la 1re candidature, **autorisation** à la sélection (`/tasks/:id/pay`, capture manuelle + `application_fee` = commission 15 % + `destination` travailleur), **capture** après `TERMINEE` (`/tasks/:id/capture` → `PAYEE`), remboursement, reçu, **webhook** signé (contexte raw-body isolé). Écran client de configuration des paiements + actions payer/libérer.
-- [ ] **Phase 7 — Design futuriste responsive partout.**
+- [x] **Phase 7 — Design futuriste responsive** : dégradés néon (expo-linear-gradient) sur les boutons/hero, animations sobres (`FadeIn`, respect reduce-motion), **page de démo du design system** (`/design`), aperçu visuel publié. Configs de déploiement web (Vercel/Netlify) + Docker/Render + guide `docs/DEPLOYMENT.md`.
 - [ ] **Phase 8 — Tests, seed, README, polish.**

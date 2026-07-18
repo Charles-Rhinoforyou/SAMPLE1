@@ -1,0 +1,17 @@
+# Déploiement du site (export Expo web statique) sur Netlify.
+# Base = ce dossier (apps/client). Configure "Base directory" = apps/client dans Netlify.
+
+[build]
+  command = "npx expo export --platform web"
+  publish = "dist"
+
+[build.environment]
+  # À définir dans les variables d'environnement Netlify :
+  # EXPO_PUBLIC_API_URL = "https://ton-api.exemple.com"
+  NODE_VERSION = "20"
+
+# SPA : toutes les routes servent index.html (routage côté client par expo-router).
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import {
+  Animated,
   Pressable,
   Text,
   TextInput,
@@ -8,7 +9,51 @@ import {
   type ViewStyle,
   type StyleProp,
 } from "react-native";
-import { colors, radius, spacing, typography, MIN_TOUCH } from "../theme/tokens";
+import { LinearGradient } from "expo-linear-gradient";
+import {
+  colors,
+  gradients,
+  radius,
+  spacing,
+  typography,
+  MIN_TOUCH,
+} from "../theme/tokens";
+
+/** Entrée en fondu + léger glissé, respectant reduce-motion via durée courte. */
+export function FadeIn({
+  children,
+  delay = 0,
+  style,
+}: {
+  children: React.ReactNode;
+  delay?: number;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const anim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(anim, {
+      toValue: 1,
+      duration: 320,
+      delay,
+      useNativeDriver: true,
+    }).start();
+  }, [anim, delay]);
+  return (
+    <Animated.View
+      style={[
+        style,
+        {
+          opacity: anim,
+          transform: [
+            { translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) },
+          ],
+        },
+      ]}
+    >
+      {children}
+    </Animated.View>
+  );
+}
 
 /** Champ de saisie étiqueté, thème sombre. */
 export function TextField({
@@ -60,7 +105,7 @@ export function Card({
   );
 }
 
-/** Bouton avec variantes néon. */
+/** Bouton avec variantes néon (dégradés pour primary/accent). */
 export function Button({
   label,
   onPress,
@@ -70,26 +115,37 @@ export function Button({
   onPress?: () => void;
   variant?: "primary" | "accent" | "ghost";
 }) {
+  if (variant === "ghost") {
+    return (
+      <Pressable
+        onPress={onPress}
+        accessibilityRole="button"
+        style={({ pressed }) => [
+          styles.btn,
+          styles.btnGhost,
+          pressed && styles.btnPressed,
+        ]}
+      >
+        <Text style={[styles.btnLabel, { color: colors.cyan }]}>{label}</Text>
+      </Pressable>
+    );
+  }
+  const colorsGrad =
+    variant === "accent" ? gradients.accent : gradients.primary;
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      style={({ pressed }) => [
-        styles.btn,
-        variant === "primary" && styles.btnPrimary,
-        variant === "accent" && styles.btnAccent,
-        variant === "ghost" && styles.btnGhost,
-        pressed && styles.btnPressed,
-      ]}
+      style={({ pressed }) => [pressed && styles.btnPressed]}
     >
-      <Text
-        style={[
-          styles.btnLabel,
-          variant === "ghost" && { color: colors.cyan },
-        ]}
+      <LinearGradient
+        colors={colorsGrad}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.btn}
       >
-        {label}
-      </Text>
+        <Text style={styles.btnLabel}>{label}</Text>
+      </LinearGradient>
     </Pressable>
   );
 }

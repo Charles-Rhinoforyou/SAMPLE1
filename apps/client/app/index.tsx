@@ -4,7 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { sponsorshipProgress, computeTaskAmount } from "@laundry/shared";
 import { colors, spacing, typography, radius } from "../theme/tokens";
-import { Card, Button, Badge } from "../components/ui";
+import { Card, Button, Badge, FadeIn } from "../components/ui";
 import { useResponsive } from "../components/useResponsive";
 
 /**
@@ -28,6 +28,7 @@ export default function Home() {
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={[styles.container, { maxWidth: 1100 }]}>
           {/* Hero */}
+          <FadeIn>
           <View style={styles.hero}>
             <Badge label={`Aperçu ${device}`} tone="violet" />
             <Text style={styles.title}>Lessive & Pliage</Text>
@@ -49,6 +50,7 @@ export default function Home() {
               />
             </View>
           </View>
+          </FadeIn>
 
           {/* Grille responsive de fonctionnalités */}
           <View
@@ -87,6 +89,11 @@ export default function Home() {
               <Badge label="Succès" tone="success" />
               <Badge label="Alerte" tone="warning" />
             </View>
+            <Button
+              label="Voir le design system"
+              variant="ghost"
+              onPress={() => router.push("/design")}
+            />
           </Card>
         </View>
       </ScrollView>
