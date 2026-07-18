@@ -24,6 +24,7 @@
     "argon2": "^0.40.3",
     "fastify": "^4.28.1",
     "fastify-plugin": "^4.5.1",
+    "stripe": "^16.9.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {

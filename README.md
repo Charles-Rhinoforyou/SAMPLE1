@@ -168,6 +168,14 @@ La logique d'éligibilité est dans `packages/shared/src/eligibility.ts` (testé
 - **Mode test** par défaut ; clés en variables d'environnement, **jamais en dur**.
 - Le calcul de répartition (commission / reversement) est dans `packages/shared/src/pricing.ts` (testé).
 
+**Flux implémenté (destination charge + capture différée) :**
+1. Le travailleur relie un **compte Connect Express** (`POST /payments/connect/onboard`), déclenché dès sa 1re candidature.
+2. À la sélection, le demandeur **autorise** le paiement (`POST /tasks/:id/pay`) : `PaymentIntent` en **capture manuelle**, `transfer_data.destination` = compte du travailleur, `application_fee_amount` = commission → l'autorisation fait office de **séquestre**.
+3. À la fin (`TERMINEE`), le demandeur **libère** le paiement (`POST /tasks/:id/capture`) : capture Stripe → le travailleur reçoit son dû, la plateforme conserve la commission, la tâche passe `PAYEE`.
+4. **Remboursement** (`POST /payments/:id/refund`), **reçu** (`GET /payments/task/:id`), **webhook** signé (`POST /payments/webhook`) pour synchroniser les statuts.
+
+Sans `STRIPE_SECRET_KEY`, un `MockPaymentProvider` simule tout le flux (dev/tests) ; le webhook répond alors en no-op.
+
 ### ⚠️ Note légale (CESU / URSSAF) — à traiter avant mise en production
 
 En France, **rémunérer un particulier pour des tâches ménagères** (dont la lessive/le pliage relèvent) entre généralement dans le champ des **services à la personne** et implique souvent le **CESU** (Chèque Emploi Service Universel) et/ou une **déclaration URSSAF**, avec des obligations sociales/fiscales pour le particulier employeur.
@@ -183,6 +191,6 @@ Cette contrainte **n'est pas implémentée** dans le code (feu vert requis). Un 
 - [x] **Phase 3 — Inscription** : parrainage 5/5 (code d'invitation, activation auto), voie GdC (repli manuel via `IdentityVerificationProvider`), **back-office admin** (liste + validation/rejet), écrans client (inscription, connexion, tableau de bord de progression, soumission GdC, admin). Config **EAS Build** pour publication store.
 - [x] **Phase 4 — Cœur métier** : création d'annonce (heures + taux + **montant auto** calculé côté partagé), découverte/filtre des annonces ouvertes, candidatures, **choix du candidat** (attribution + refus des autres en transaction), transitions de statut (`OUVERTE → ATTRIBUEE → EN_COURS → TERMINEE`, annulation) gardées par la machine à états. Écrans : liste/filtre, création (montant en direct), détail (candidats + choix + suivi).
 - [x] **Phase 5 — Notation & messagerie** : avis 1–5 + commentaire après `TERMINEE` (demandeur ↔ travailleur, réciprocité, un avis par auteur/tâche), **recalcul de la note moyenne** du profil ; messagerie légère demandeur ↔ candidat retenu (REST + **WebSocket temps réel** par tâche, auth par token). Écrans : notation (étoiles), fil de discussion.
-- [ ] **Phase 6 — Paiement Stripe Connect (mode test).**
+- [x] **Phase 6 — Paiement Stripe Connect (mode test)** : modèle **destination charge + capture différée** derrière une interface `PaymentProvider` (impl. Stripe réelle + `MockPaymentProvider` par défaut sans clé). Onboarding **Connect Express** dès la 1re candidature, **autorisation** à la sélection (`/tasks/:id/pay`, capture manuelle + `application_fee` = commission 15 % + `destination` travailleur), **capture** après `TERMINEE` (`/tasks/:id/capture` → `PAYEE`), remboursement, reçu, **webhook** signé (contexte raw-body isolé). Écran client de configuration des paiements + actions payer/libérer.
 - [ ] **Phase 7 — Design futuriste responsive partout.**
 - [ ] **Phase 8 — Tests, seed, README, polish.**

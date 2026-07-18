@@ -4,6 +4,7 @@ import {
   computeTaskAmount,
   computePaymentBreakdown,
   roundMoney,
+  eurosToCents,
 } from "./pricing.js";
 
 describe("computeDurationHours", () => {
@@ -103,5 +104,13 @@ describe("roundMoney", () => {
   it("arrondit à 2 décimales", () => {
     expect(roundMoney(18.495)).toBe(18.5);
     expect(roundMoney(0.1 + 0.2)).toBe(0.3);
+  });
+});
+
+describe("eurosToCents", () => {
+  it("convertit en centimes entiers", () => {
+    expect(eurosToCents(45)).toBe(4500);
+    expect(eurosToCents(18.5)).toBe(1850);
+    expect(eurosToCents(0.1 + 0.2)).toBe(30);
   });
 });

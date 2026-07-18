@@ -139,6 +139,39 @@ export const endpoints = {
       method: "POST",
       body: { contenu },
     }),
+
+  // Paiement (Stripe Connect)
+  onboardConnect: () =>
+    api<{ accountId: string; url: string; mode: string }>(
+      "/payments/connect/onboard",
+      { method: "POST" }
+    ),
+  connectStatus: () =>
+    api<{
+      onboarded: boolean;
+      chargesEnabled?: boolean;
+      payoutsEnabled?: boolean;
+    }>("/payments/connect/status"),
+  payTask: (taskId: string) =>
+    api<{
+      paymentId: string;
+      clientSecret: string | null;
+      mode: string;
+      breakdown: {
+        montantTotal: number;
+        commission: number;
+        reversementTravailleur: number;
+      };
+    }>(`/tasks/${taskId}/pay`, { method: "POST" }),
+  captureTask: (taskId: string) =>
+    api<{ status: string }>(`/tasks/${taskId}/capture`, { method: "POST" }),
+  paymentReceipt: (taskId: string) =>
+    api<{
+      montant: string;
+      commission: string;
+      statut: string;
+      stripeRef: string | null;
+    }>(`/payments/task/${taskId}`),
 };
 
 export interface ReviewItem {

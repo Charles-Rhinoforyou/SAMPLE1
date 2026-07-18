@@ -12,6 +12,8 @@ import { adminRoutes } from "./modules/admin/routes.js";
 import { taskRoutes } from "./modules/tasks/routes.js";
 import { reviewRoutes } from "./modules/reviews/routes.js";
 import { messagingRoutes } from "./modules/messaging/routes.js";
+import { paymentRoutes } from "./modules/payments/routes.js";
+import { webhookRoutes } from "./modules/payments/webhook.js";
 
 export async function buildApp() {
   const app = Fastify({ logger: true });
@@ -55,6 +57,8 @@ export async function buildApp() {
   await app.register(taskRoutes);
   await app.register(reviewRoutes);
   await app.register(messagingRoutes);
+  await app.register(paymentRoutes);
+  await app.register(webhookRoutes);
 
   return app;
 }

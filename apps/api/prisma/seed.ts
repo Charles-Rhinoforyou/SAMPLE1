@@ -61,6 +61,7 @@ async function main() {
       accessMethod: "GENS_DE_CONFIANCE",
       bio: "Rapide et soigneux, spécialiste du pliage.",
       noteMoyenne: 4.6,
+      stripeAccountId: "acct_mock_bob",
     },
   });
 
@@ -73,6 +74,7 @@ async function main() {
       verifStatus: "VERIFIED",
       accessMethod: "SPONSORSHIP",
       noteMoyenne: 4.9,
+      stripeAccountId: "acct_mock_chloe",
     },
   });
 

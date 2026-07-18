@@ -82,6 +82,11 @@ export default function Dashboard() {
               variant="accent"
               onPress={() => router.push("/tasks/new")}
             />
+            <Button
+              label="Configurer mes paiements"
+              variant="ghost"
+              onPress={() => router.push("/payments")}
+            />
           </Card>
 
           {user.isAdmin ? (

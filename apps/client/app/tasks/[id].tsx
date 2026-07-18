@@ -95,7 +95,18 @@ export default function TaskDetailScreen() {
             <Card style={{ gap: spacing.sm }}>
               <Text style={styles.section}>Postuler</Text>
               {alreadyApplied ? (
-                <Badge label="Candidature envoyée" tone="success" />
+                <>
+                  <Badge label="Candidature envoyée" tone="success" />
+                  <Text style={styles.muted}>
+                    Pensez à configurer votre compte de paiement pour être payé
+                    si vous êtes retenu.
+                  </Text>
+                  <Button
+                    label="Configurer mes paiements"
+                    variant="ghost"
+                    onPress={() => router.push("/payments")}
+                  />
+                </>
               ) : (
                 <>
                   <TextField
@@ -173,6 +184,20 @@ export default function TaskDetailScreen() {
                   label="Marquer terminée"
                   variant="primary"
                   onPress={() => act(() => endpoints.completeTask(task.id))}
+                />
+              ) : null}
+              {isOwner && task.statut === "ATTRIBUEE" ? (
+                <Button
+                  label="Autoriser le paiement"
+                  variant="primary"
+                  onPress={() => act(() => endpoints.payTask(task.id))}
+                />
+              ) : null}
+              {isOwner && task.statut === "TERMINEE" ? (
+                <Button
+                  label="Libérer le paiement"
+                  variant="primary"
+                  onPress={() => act(() => endpoints.captureTask(task.id))}
                 />
               ) : null}
               {(task.statut === "OUVERTE" ||

@@ -69,6 +69,30 @@ describe("routes publiques", () => {
     const res = await app.inject({ method: "GET", url: "/tasks/t1/messages" });
     expect(res.statusCode).toBe(401);
   });
+
+  it("POST /payments/connect/onboard sans token -> 401", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/payments/connect/onboard",
+    });
+    expect(res.statusCode).toBe(401);
+  });
+
+  it("POST /tasks/:id/pay sans token -> 401", async () => {
+    const res = await app.inject({ method: "POST", url: "/tasks/t1/pay" });
+    expect(res.statusCode).toBe(401);
+  });
+
+  it("POST /payments/webhook sans clé Stripe -> 200 (mode mock)", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/payments/webhook",
+      headers: { "content-type": "application/json" },
+      payload: "{}",
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({ received: true });
+  });
 });
 
 describe("gardes d'autorisation", () => {

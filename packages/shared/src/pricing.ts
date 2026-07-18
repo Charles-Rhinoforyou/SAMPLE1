@@ -29,6 +29,11 @@ export function roundMoney(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
+/** Convertit un montant en euros vers des centimes entiers (pour Stripe). */
+export function eurosToCents(euros: number): number {
+  return Math.round((euros + Number.EPSILON) * 100);
+}
+
 export interface AmountInput extends DurationInput {
   tauxHoraire: number;
 }
