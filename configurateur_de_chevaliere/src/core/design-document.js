@@ -75,9 +75,28 @@ export function createEmptyDesign() {
       couleurListel: 'gueules',
       courbure: 14 // fleche de la courbure du listel (0 = droit)
     },
-    // Emplacements des phases suivantes (optionnels).
-    ring3d: null,
-    materiau: null
+    // Parametres de la chevaliere 3D (Phase 4) + materiau/finition (Phase 5).
+    ring3d: defaultRing3d(),
+    materiau: 'or-jaune',
+    finition: 'poli'
+  };
+}
+
+/** Parametres 3D par defaut de la chevaliere (dimensions en millimetres). */
+export function defaultRing3d() {
+  return {
+    plateauForme: 'ovale', // 'ecu' | 'rond' | 'ovale' | 'coussin' | 'rectangle' | 'octogone'
+    tourDoigtMm: 17.2, // diametre interieur (mm) -> pilote le diametre de l'anneau
+    anneauLargeur: 5.5, // largeur de l'anneau (mm)
+    anneauEpaisseur: 2.2, // epaisseur de l'anneau (mm)
+    epaulement: 1.2, // evasement des epaules vers le plateau (0 = jonc uniforme)
+    plateauLargeur: 15, // largeur du plateau (mm)
+    plateauHauteur: 18, // hauteur/longueur du plateau (mm)
+    plateauEpaisseur: 2.8, // epaisseur du plateau (mm)
+    conge: 2.5, // congé plateau <-> anneau (mm)
+    relief: 'bosse', // 'bosse' (relief positif) | 'creux' (intaille)
+    profondeur: 0.7, // profondeur/hauteur du relief (mm)
+    biseau: true // biseaux/chanfreins sur le relief
   };
 }
 
@@ -171,7 +190,10 @@ export function migrateDesign(parsed) {
     meta: { ...base.meta, ...(parsed.meta || {}) },
     customSymbols: Array.isArray(parsed.customSymbols) ? parsed.customSymbols : [],
     couronne: { ...base.couronne, ...(parsed.couronne || {}) },
-    devise: { ...base.devise, ...(parsed.devise || {}) }
+    devise: { ...base.devise, ...(parsed.devise || {}) },
+    ring3d: { ...defaultRing3d(), ...(parsed.ring3d || {}) },
+    materiau: parsed.materiau || 'or-jaune',
+    finition: parsed.finition || 'poli'
   };
 
   // --- Ecu / quartiers ---

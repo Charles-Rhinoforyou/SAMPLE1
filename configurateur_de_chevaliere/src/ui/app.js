@@ -21,16 +21,29 @@ import { installInteractions } from '../engine2d/dnd.js';
 import { analyserDesign } from '../core/heraldry-rules.js';
 import { getQuartiers, createQuartier, defaultLayout } from '../core/design-document.js';
 import { GENEALOGY, searchGenealogy } from '../data/genealogy-library.js';
+import { ThreeView } from '../engine3d/scene.js';
+import { RING_SIZES, nearestSize } from '../data/ring-sizes.js';
+import { METALS, METAL_ORDER, FINITIONS, FINITION_ORDER } from '../engine3d/materials.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 const STEPS = [
-  { id: 'ecu', label: 'Ecu', active: true },
-  { id: 'composition', label: 'Composition', active: true },
-  { id: 'genealogie', label: 'Genealogie', active: true },
-  { id: '3d', label: '3D', active: false },
-  { id: 'materiau', label: 'Materiau', active: false },
-  { id: 'export', label: 'Export / Partage', active: false }
+  { id: 'ecu', label: 'Ecu', active: true, mode: '2d' },
+  { id: 'composition', label: 'Composition', active: true, mode: '2d' },
+  { id: 'genealogie', label: 'Genealogie', active: true, mode: '2d' },
+  { id: '3d', label: '3D', active: true, mode: '3d' },
+  { id: 'materiau', label: 'Materiau', active: true, mode: '3d' },
+  { id: 'export', label: 'Export / Partage', active: false, mode: '2d' }
+];
+
+// Formes de plateau (chaton) de la chevaliere.
+const PLATEAU_FORMES = [
+  ['ecu', 'Ecu (contour du blason)'],
+  ['rond', 'Rond'],
+  ['ovale', 'Ovale'],
+  ['coussin', 'Coussin'],
+  ['rectangle', 'Rectangle'],
+  ['octogone', 'Octogone']
 ];
 
 const DISPOSITIONS = [
@@ -52,6 +65,9 @@ export function mountApp(root, ctx) {
   let selectedId = null;
   let activeQuartier = 0;
   let guides = [];
+  let mode = '2d'; // '2d' (edition blason) | '3d' (chevaliere)
+  let threeView = null;
+  let activeStep = 'ecu';
 
   const setSelected = (id) => { selectedId = id; refresh(); };
   const getSelected = () => selectedId;
@@ -61,7 +77,6 @@ export function mountApp(root, ctx) {
 
   // Squelette.
   root.innerHTML = '';
-  root.appendChild(buildHeader(store, ctx));
   const layout = document.createElement('div');
   layout.className = 'layout';
   const leftPanel = document.createElement('aside');
@@ -71,64 +86,107 @@ export function mountApp(root, ctx) {
   const rightPanel = document.createElement('aside');
   rightPanel.className = 'panel';
   layout.append(leftPanel, centerPanel, rightPanel);
-  root.appendChild(layout);
-  root.appendChild(buildToastHost());
 
-  // Scene 2D.
-  centerPanel.innerHTML = '<h2>Blason</h2>';
-  const stage = document.createElement('div');
-  stage.className = 'stage panel-body';
+  // Centre : en-tete + scene 2D (SVG) + scene 3D (WebGL).
+  const centerHead = document.createElement('h2');
+  centerHead.textContent = 'Blason';
+  const stage2d = document.createElement('div');
+  stage2d.className = 'stage panel-body';
   const svg = createShieldSvg();
-  stage.appendChild(svg);
+  stage2d.appendChild(svg);
   const hint = document.createElement('p');
   hint.className = 'hint';
   hint.textContent =
-    'Glissez un meuble dans le quartier actif. En disposition « Libre », deplacez a la souris (aimantation au centre et aux voisins). Choisissez une disposition pour un placement automatique.';
-  stage.appendChild(hint);
-  centerPanel.appendChild(stage);
+    'Glissez un meuble dans le quartier actif. En disposition « Libre », deplacez a la souris (aimantation). Choisissez une disposition pour un placement automatique.';
+  stage2d.appendChild(hint);
+  const stage3d = document.createElement('div');
+  stage3d.className = 'stage3d';
+  stage3d.style.display = 'none';
+  centerPanel.append(centerHead, stage2d, stage3d);
 
   installInteractions({ svg, store, getSelected, setSelected, getActiveQuartier, setGuides });
 
+  function ensureThree() {
+    if (!threeView) threeView = new ThreeView(stage3d);
+  }
+
+  const setMode = (m, stepId) => {
+    mode = m;
+    if (stepId) activeStep = stepId;
+    const is3d = mode === '3d';
+    stage2d.style.display = is3d ? 'none' : '';
+    stage3d.style.display = is3d ? '' : 'none';
+    centerHead.textContent = is3d ? 'Chevaliere 3D' : 'Blason';
+    if (is3d) {
+      ensureThree();
+      threeView.setDesign(store.getState());
+      requestAnimationFrame(() => threeView._resize());
+    }
+    updateWizard();
+    refresh();
+  };
+
   function refresh() {
     const design = store.getState();
-    // Borne le quartier actif si la partition a change.
     const nQ = getQuartiers(design).length;
     if (activeQuartier >= nQ) activeQuartier = nQ - 1;
     if (activeQuartier < 0) activeQuartier = 0;
 
-    const warnings = analyserDesign(design);
-    const warnIds = new Set(warnings.map((w) => w.meubleId));
-    renderShield(svg, design, { selectedId, warnMeubleIds: warnIds, activeQuartier, guides });
-    renderLeftPanel(leftPanel, { store, design, ctx, activeQuartier, setActiveQuartier });
-    renderRightPanel(rightPanel, { store, design, selectedId, setSelected, warnings });
+    if (mode === '3d') {
+      if (threeView) threeView.setDesign(design);
+      render3DLeftPanel(leftPanel, { store, design });
+      render3DRightPanel(rightPanel, { store, design, getThree: () => threeView, ctx });
+    } else {
+      const warnings = analyserDesign(design);
+      const warnIds = new Set(warnings.map((w) => w.meubleId));
+      renderShield(svg, design, { selectedId, warnMeubleIds: warnIds, activeQuartier, guides });
+      renderLeftPanel(leftPanel, { store, design, ctx, activeQuartier, setActiveQuartier });
+      renderRightPanel(rightPanel, { store, design, selectedId, setSelected, warnings });
+    }
   }
+
+  const { header, updateWizard } = buildHeader(store, ctx, { setMode, getStep: () => activeStep });
+  root.append(header, layout, buildToastHost());
 
   store.subscribe(refresh);
 }
 
 /* ===================== EN-TETE ===================== */
 
-function buildHeader(store, ctx) {
+function buildHeader(store, ctx, nav) {
   const header = document.createElement('header');
   header.className = 'app-header';
   const titleRow = document.createElement('div');
   titleRow.className = 'app-title';
   titleRow.innerHTML =
     '<h1>Configurateur de chevaliere</h1>' +
-    '<span class="subtitle">Blason heraldique 2D &rarr; chevaliere 3D &middot; Phase 2</span>';
+    '<span class="subtitle">Blason heraldique 2D &rarr; chevaliere 3D &middot; Phase 4</span>';
   header.appendChild(titleRow);
 
   const wizard = document.createElement('nav');
   wizard.className = 'wizard';
-  STEPS.forEach((s, i) => {
+  const stepEls = [];
+  STEPS.forEach((s) => {
     const el = document.createElement('div');
-    el.className = 'step' + (s.active ? (i === 0 ? ' active' : ' active-2') : ' todo');
-    el.innerHTML = `<span class="num">${i + 1}</span> ${s.label}` + (s.active ? '' : ' <em style="font-size:.7rem">(a venir)</em>');
+    el.innerHTML = `<span class="num">${STEPS.indexOf(s) + 1}</span> ${s.label}` + (s.active ? '' : ' <em style="font-size:.7rem">(a venir)</em>');
+    if (s.active) {
+      el.style.cursor = 'pointer';
+      el.addEventListener('click', () => nav.setMode(s.mode, s.id));
+    }
+    stepEls.push({ el, step: s });
     wizard.appendChild(el);
   });
   header.appendChild(wizard);
   header.appendChild(buildToolbar(store, ctx));
-  return header;
+
+  const updateWizard = () => {
+    const cur = nav.getStep();
+    for (const { el, step } of stepEls) {
+      el.className = 'step' + (!step.active ? ' todo' : step.id === cur ? ' active' : ' active-2');
+    }
+  };
+  updateWizard();
+  return { header, updateWizard };
 }
 
 function buildToolbar(store, ctx) {
@@ -527,6 +585,159 @@ function deviseControls(store, design) {
     sec.appendChild(colWrap);
   }
   return sec;
+}
+
+/* ===================== PANNEAUX 3D (Phase 4 + 5) ===================== */
+
+function render3DLeftPanel(panel, { store, design }) {
+  panel.innerHTML = '<h2>Chevaliere 3D</h2>';
+  const body = document.createElement('div');
+  body.className = 'panel-body';
+  const r = design.ring3d;
+
+  // Forme du plateau (chaton).
+  const secF = section('Forme du plateau (chaton)');
+  const fg = document.createElement('div');
+  fg.className = 'row-btns';
+  for (const [id, lab] of PLATEAU_FORMES) {
+    const b = btn(lab.replace(/\s*\(.*\)/, ''), () => store.commit((d) => (d.ring3d.plateauForme = id), 'plateau'));
+    if (r.plateauForme === id) b.classList.add('primary');
+    b.title = lab;
+    fg.appendChild(b);
+  }
+  secF.appendChild(fg);
+  body.appendChild(secF);
+
+  // Tour de doigt.
+  const secT = section('Tour de doigt');
+  const selWrap = document.createElement('div');
+  selWrap.className = 'field';
+  const sel = document.createElement('select');
+  for (const s of RING_SIZES) {
+    const o = document.createElement('option');
+    o.value = s.mmDiam;
+    o.textContent = `Ø ${s.mmDiam.toFixed(1)} mm — FR ${s.fr} / US ${s.us} / UK ${s.uk}`;
+    if (Math.abs(s.mmDiam - r.tourDoigtMm) < 0.05) o.selected = true;
+    sel.appendChild(o);
+  }
+  sel.addEventListener('change', () => store.commit((d) => (d.ring3d.tourDoigtMm = parseFloat(sel.value)), 'tour-doigt'));
+  selWrap.appendChild(sel);
+  secT.appendChild(selWrap);
+  const near = nearestSize(r.tourDoigtMm);
+  const info = document.createElement('p');
+  info.className = 'empty-hint';
+  info.textContent = `Diametre interieur ${r.tourDoigtMm.toFixed(1)} mm (≈ FR ${near.fr}).`;
+  secT.appendChild(info);
+  body.appendChild(secT);
+
+  // Dimensions.
+  const secD = section('Dimensions (mm)');
+  const mk = (label, key, min, max, step) =>
+    secD.appendChild(rangeField(label, r[key], min, max, step, (v) => store.commit((d) => (d.ring3d[key] = v), key)));
+  mk('Largeur de l\'anneau', 'anneauLargeur', 2, 12, 0.1);
+  mk('Epaisseur de l\'anneau', 'anneauEpaisseur', 1, 5, 0.1);
+  mk('Epaulement (evasement)', 'epaulement', 0, 2.5, 0.05);
+  mk('Largeur du plateau', 'plateauLargeur', 8, 24, 0.5);
+  mk('Hauteur du plateau', 'plateauHauteur', 8, 28, 0.5);
+  mk('Epaisseur du plateau', 'plateauEpaisseur', 1.5, 6, 0.1);
+  mk('Congé (anneau/plateau)', 'conge', 0, 6, 0.1);
+  body.appendChild(secD);
+
+  // Relief.
+  const secR = section('Relief du blason');
+  const relBtns = document.createElement('div');
+  relBtns.className = 'row-btns';
+  for (const [id, lab] of [['bosse', 'En bosse (saillie)'], ['creux', 'En creux (intaille)']]) {
+    const b = btn(lab, () => store.commit((d) => (d.ring3d.relief = id), 'relief'));
+    if (r.relief === id) b.classList.add('primary');
+    relBtns.appendChild(b);
+  }
+  secR.appendChild(relBtns);
+  secR.appendChild(rangeField('Profondeur du relief', r.profondeur, 0.2, 2, 0.05, (v) => store.commit((d) => (d.ring3d.profondeur = v), 'profondeur')));
+  const bisRow = document.createElement('label');
+  bisRow.style.cssText = 'display:flex;gap:8px;align-items:center;font-size:.8rem;margin-top:6px';
+  const bis = document.createElement('input');
+  bis.type = 'checkbox';
+  bis.checked = r.biseau;
+  bis.addEventListener('change', () => store.commit((d) => (d.ring3d.biseau = bis.checked), 'biseau'));
+  bisRow.append(bis, document.createTextNode('Biseaux / chanfreins'));
+  secR.appendChild(bisRow);
+  body.appendChild(secR);
+
+  panel.appendChild(body);
+}
+
+function render3DRightPanel(panel, { store, design, getThree, ctx }) {
+  panel.innerHTML = '<h2>Materiau &amp; rendu</h2>';
+  const body = document.createElement('div');
+  body.className = 'panel-body';
+
+  // Metaux.
+  const secM = section('Metal');
+  const grid = document.createElement('div');
+  grid.className = 'tincture-grid';
+  for (const id of METAL_ORDER) {
+    const m = METALS[id];
+    const sw = document.createElement('div');
+    sw.className = 'swatch' + (design.materiau === id ? ' active' : '');
+    sw.title = m.nom;
+    const chip = document.createElement('div');
+    chip.className = 'chip';
+    chip.style.background = '#' + m.color.toString(16).padStart(6, '0');
+    const name = document.createElement('span');
+    name.className = 'name';
+    name.textContent = m.nom;
+    sw.append(chip, name);
+    sw.addEventListener('click', () => store.commit((d) => (d.materiau = id), 'materiau'));
+    grid.appendChild(sw);
+  }
+  secM.appendChild(grid);
+  body.appendChild(secM);
+
+  // Finition.
+  const secF = section('Finition');
+  const selWrap = document.createElement('div');
+  selWrap.className = 'field';
+  const sel = document.createElement('select');
+  for (const id of FINITION_ORDER) {
+    const o = document.createElement('option');
+    o.value = id;
+    o.textContent = FINITIONS[id].nom;
+    if ((design.finition || 'poli') === id) o.selected = true;
+    sel.appendChild(o);
+  }
+  sel.addEventListener('change', () => store.commit((d) => (d.finition = sel.value), 'finition'));
+  selWrap.appendChild(sel);
+  secF.appendChild(selWrap);
+  body.appendChild(secF);
+
+  // Vue & capture.
+  const secV = section('Vue');
+  const row = document.createElement('div');
+  row.className = 'row-btns';
+  row.appendChild(btn('Recentrer la vue', () => getThree()?.resetView()));
+  row.appendChild(btn('Capture PNG', () => {
+    const tv = getThree();
+    if (!tv) return;
+    const url = tv.capture();
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = (design.meta.nom || 'chevaliere').replace(/[^\w\-]+/g, '_') + '.png';
+    a.click();
+    toast('Capture PNG enregistree.');
+  }));
+  secV.appendChild(row);
+  body.appendChild(secV);
+
+  // Note honnete sur les approximations.
+  const note = document.createElement('p');
+  note.className = 'empty-hint';
+  note.style.marginTop = '10px';
+  note.textContent =
+    'Rendu PBR temps reel (environnement studio procedural). Le champ 3D prend la teinture du 1er quartier ; l\'intaille (creux) est un rendu visuel sans soustraction booleenne.';
+  body.appendChild(note);
+
+  panel.appendChild(body);
 }
 
 /* ===================== BIBLIOTHEQUE GENEALOGIQUE ===================== */

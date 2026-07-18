@@ -208,6 +208,22 @@ button.btn.danger {
   text-align: center;
 }
 
+/* Scene 3D */
+.stage3d {
+  width: 100%;
+  height: min(64vh, 560px);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 50% 30%, #ffffff 0%, transparent 55%),
+    linear-gradient(180deg, #eef2f8 0%, #cfd7e3 100%);
+  overflow: hidden;
+  touch-action: none;
+  cursor: grab;
+}
+.stage3d canvas {
+  display: block;
+}
+
 /* ---------- Grilles de vignettes (formes + meubles) ---------- */
 .thumb-grid {
   display: grid;
