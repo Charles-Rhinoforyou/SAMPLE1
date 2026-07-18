@@ -94,6 +94,47 @@ export function Button({
   );
 }
 
+/** Sélecteur segmenté (choix exclusif), thème sombre. */
+export function Segmented<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label?: string;
+  value: T;
+  options: { value: T; label: string }[];
+  onChange: (v: T) => void;
+}) {
+  return (
+    <View style={{ gap: spacing.xs, width: "100%" }}>
+      {label ? <Text style={styles.fieldLabel}>{label}</Text> : null}
+      <View style={styles.segment}>
+        {options.map((o) => {
+          const active = o.value === value;
+          return (
+            <Pressable
+              key={o.value}
+              onPress={() => onChange(o.value)}
+              accessibilityRole="button"
+              style={[styles.segmentItem, active && styles.segmentItemActive]}
+            >
+              <Text
+                style={[
+                  styles.segmentText,
+                  active && { color: "#06121A" },
+                ]}
+              >
+                {o.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 /** Badge / puce d'état. */
 export function Badge({
   label,
@@ -162,4 +203,23 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   badgeText: { ...typography.caption },
+  segment: {
+    flexDirection: "row",
+    backgroundColor: colors.bgElevated,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 3,
+    gap: 3,
+  },
+  segmentItem: {
+    flex: 1,
+    minHeight: 38,
+    borderRadius: radius.sm,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: spacing.sm,
+  },
+  segmentItemActive: { backgroundColor: colors.cyan },
+  segmentText: { ...typography.label, color: colors.textSecondary },
 });

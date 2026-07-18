@@ -4,8 +4,45 @@ import type {
   RegisterInput,
   LoginInput,
   GdcVerificationInput,
+  CreateTaskInput,
+  TaskType,
+  TaskStatus,
 } from "@laundry/shared";
 import { api } from "./client";
+
+export interface TaskSummary {
+  id: string;
+  titre: string;
+  description: string;
+  type: TaskType;
+  zone: string;
+  heureDebut: string;
+  heureFin: string;
+  tauxHoraire: string;
+  montantTotal: string;
+  statut: TaskStatus;
+  workerId: string | null;
+  owner?: { id: string; nom: string; noteMoyenne: number };
+  _count?: { applications: number };
+}
+
+export interface TaskApplication {
+  id: string;
+  workerId: string;
+  message: string | null;
+  statut: "ENVOYEE" | "ACCEPTEE" | "REFUSEE";
+  worker: {
+    id: string;
+    nom: string;
+    noteMoyenne: number;
+    bio: string | null;
+    photoUrl: string | null;
+  };
+}
+
+export interface TaskDetail extends TaskSummary {
+  applications: TaskApplication[];
+}
 
 export interface PublicUser {
   id: string;
@@ -57,4 +94,31 @@ export const endpoints = {
       method: "POST",
       body: { decision },
     }),
+
+  // Tâches / annonces
+  createTask: (body: CreateTaskInput) =>
+    api<TaskSummary>("/tasks", { method: "POST", body }),
+  listTasks: (filter?: {
+    type?: TaskType;
+    zone?: string;
+    tauxMin?: number;
+    tauxMax?: number;
+  }) => {
+    const q = new URLSearchParams();
+    if (filter?.type) q.set("type", filter.type);
+    if (filter?.zone) q.set("zone", filter.zone);
+    if (filter?.tauxMin != null) q.set("tauxMin", String(filter.tauxMin));
+    if (filter?.tauxMax != null) q.set("tauxMax", String(filter.tauxMax));
+    const qs = q.toString();
+    return api<TaskSummary[]>(`/tasks${qs ? `?${qs}` : ""}`);
+  },
+  myTasks: () => api<TaskSummary[]>("/tasks/mine"),
+  getTask: (id: string) => api<TaskDetail>(`/tasks/${id}`),
+  applyToTask: (id: string, message?: string) =>
+    api(`/tasks/${id}/applications`, { method: "POST", body: { message } }),
+  acceptApplication: (taskId: string, appId: string) =>
+    api(`/tasks/${taskId}/applications/${appId}/accept`, { method: "POST" }),
+  startTask: (id: string) => api(`/tasks/${id}/start`, { method: "POST" }),
+  completeTask: (id: string) => api(`/tasks/${id}/complete`, { method: "POST" }),
+  cancelTask: (id: string) => api(`/tasks/${id}/cancel`, { method: "POST" }),
 };

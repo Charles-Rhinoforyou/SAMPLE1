@@ -94,4 +94,47 @@ describe("gardes d'autorisation", () => {
     });
     expect(res.statusCode).toBe(403);
   });
+
+  it("GET /tasks sans token -> 401", async () => {
+    const res = await app.inject({ method: "GET", url: "/tasks" });
+    expect(res.statusCode).toBe(401);
+  });
+
+  it("un compte non vérifié ne peut pas créer d'annonce -> 403", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/tasks",
+      headers: { authorization: `Bearer ${token({ sub: "u1" })}` },
+      payload: {
+        titre: "Test",
+        description: "Description assez longue",
+        type: "LESSIVE",
+        zone: "Paris",
+        heureDebut: "2026-07-20T09:00:00Z",
+        heureFin: "2026-07-20T12:00:00Z",
+        tauxHoraire: 15,
+      },
+    });
+    expect(res.statusCode).toBe(403);
+  });
+
+  it("un compte vérifié avec annonce invalide (fin avant début) -> 400", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/tasks",
+      headers: {
+        authorization: `Bearer ${token({ sub: "u1", verifStatus: "VERIFIED" })}`,
+      },
+      payload: {
+        titre: "Test",
+        description: "Description assez longue",
+        type: "LESSIVE",
+        zone: "Paris",
+        heureDebut: "2026-07-20T12:00:00Z",
+        heureFin: "2026-07-20T09:00:00Z",
+        tauxHoraire: 15,
+      },
+    });
+    expect(res.statusCode).toBe(400);
+  });
 });

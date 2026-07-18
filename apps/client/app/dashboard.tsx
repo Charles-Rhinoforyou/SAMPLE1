@@ -66,6 +66,24 @@ export default function Dashboard() {
             />
           </Card>
 
+          {/* Accès au cœur métier */}
+          <Card style={{ gap: spacing.sm }}>
+            <Text style={styles.section}>Annonces</Text>
+            <Text style={styles.muted}>
+              Parcourez les annonces ouvertes ou publiez une tâche.
+            </Text>
+            <Button
+              label="Voir les annonces"
+              variant="primary"
+              onPress={() => router.push("/tasks")}
+            />
+            <Button
+              label="Publier une annonce"
+              variant="accent"
+              onPress={() => router.push("/tasks/new")}
+            />
+          </Card>
+
           {user.isAdmin ? (
             <Button
               label="Ouvrir le back-office admin"

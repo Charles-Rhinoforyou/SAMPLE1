@@ -9,6 +9,7 @@ import { authRoutes } from "./modules/auth/routes.js";
 import { sponsorshipRoutes } from "./modules/sponsorship/routes.js";
 import { verificationRoutes } from "./modules/verification/routes.js";
 import { adminRoutes } from "./modules/admin/routes.js";
+import { taskRoutes } from "./modules/tasks/routes.js";
 
 export async function buildApp() {
   const app = Fastify({ logger: true });
@@ -49,6 +50,7 @@ export async function buildApp() {
   await app.register(sponsorshipRoutes);
   await app.register(verificationRoutes);
   await app.register(adminRoutes);
+  await app.register(taskRoutes);
 
   return app;
 }
