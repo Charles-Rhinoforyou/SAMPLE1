@@ -24,6 +24,9 @@ import { GENEALOGY, searchGenealogy } from '../data/genealogy-library.js';
 import { ThreeView } from '../engine3d/scene.js';
 import { RING_SIZES, nearestSize } from '../data/ring-sizes.js';
 import { METALS, METAL_ORDER, FINITIONS, FINITION_ORDER } from '../engine3d/materials.js';
+import { exportGLB, exportOBJ, exportSTL, convertViaBackend, downloadBlob } from '../exporters/exporters.js';
+import { uploadToSketchfab } from '../integrations/sketchfab.js';
+import { partagerEmail, partagerWhatsApp } from '../integrations/share.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -33,7 +36,7 @@ const STEPS = [
   { id: 'genealogie', label: 'Genealogie', active: true, mode: '2d' },
   { id: '3d', label: '3D', active: true, mode: '3d' },
   { id: 'materiau', label: 'Materiau', active: true, mode: '3d' },
-  { id: 'export', label: 'Export / Partage', active: false, mode: '2d' }
+  { id: 'export', label: 'Export / Partage', active: true, mode: '3d' }
 ];
 
 // Formes de plateau (chaton) de la chevaliere.
@@ -135,7 +138,11 @@ export function mountApp(root, ctx) {
     if (mode === '3d') {
       if (threeView) threeView.setDesign(design);
       render3DLeftPanel(leftPanel, { store, design });
-      render3DRightPanel(rightPanel, { store, design, getThree: () => threeView, ctx });
+      if (activeStep === 'export') {
+        renderExportPanel(rightPanel, { store, design, getThree: () => threeView, refresh });
+      } else {
+        render3DRightPanel(rightPanel, { store, design, getThree: () => threeView, ctx });
+      }
     } else {
       const warnings = analyserDesign(design);
       const warnIds = new Set(warnings.map((w) => w.meubleId));
@@ -160,7 +167,7 @@ function buildHeader(store, ctx, nav) {
   titleRow.className = 'app-title';
   titleRow.innerHTML =
     '<h1>Configurateur de chevaliere</h1>' +
-    '<span class="subtitle">Blason heraldique 2D &rarr; chevaliere 3D &middot; Phase 4</span>';
+    '<span class="subtitle">Blason heraldique 2D &rarr; chevaliere 3D &middot; phases 1 a 6</span>';
   header.appendChild(titleRow);
 
   const wizard = document.createElement('nav');
@@ -736,6 +743,231 @@ function render3DRightPanel(panel, { store, design, getThree, ctx }) {
   note.textContent =
     'Rendu PBR temps reel (environnement studio procedural). Le champ 3D prend la teinture du 1er quartier ; l\'intaille (creux) est un rendu visuel sans soustraction booleenne.';
   body.appendChild(note);
+
+  panel.appendChild(body);
+}
+
+/* ===================== EXPORT / GALERIE / PARTAGE (Phase 6) ===================== */
+
+const GALLERY_KEY = 'chevaliere.gallery.v1';
+const ENDPOINT_KEY = 'chevaliere.convert.endpoint';
+const GALLERY_MAX = 12;
+let sketchfabToken = ''; // conserve en memoire seulement (jamais persiste)
+let lastShareLink = ''; // lien de partage (Sketchfab) apres publication
+
+function loadGallery() {
+  try {
+    return JSON.parse(localStorage.getItem(GALLERY_KEY) || '[]');
+  } catch {
+    return [];
+  }
+}
+function saveGallery(list) {
+  try {
+    localStorage.setItem(GALLERY_KEY, JSON.stringify(list.slice(0, GALLERY_MAX)));
+  } catch {
+    /* quota depasse : on ignore silencieusement */
+  }
+}
+
+function renderExportPanel(panel, { store, design, getThree, refresh }) {
+  panel.innerHTML = '<h2>Export / Partage</h2>';
+  const body = document.createElement('div');
+  body.className = 'panel-body';
+  const nomFichier = (design.meta.nom || 'chevaliere').replace(/[^\w\-]+/g, '_');
+  const getObj = () => getThree()?.getExportObject();
+
+  // --- 1) Galerie de captures ---
+  const secG = section('Galerie de captures');
+  secG.appendChild(btn('Ajouter une capture', () => {
+    const tv = getThree();
+    if (!tv) return;
+    const url = tv.capture();
+    const list = loadGallery();
+    list.unshift({ id: 'cap-' + Date.now(), url, nom: design.meta.nom || 'Chevaliere' });
+    saveGallery(list);
+    toast('Capture ajoutee a la galerie.');
+    refresh();
+  })).classList.add('primary');
+  const gal = document.createElement('div');
+  gal.className = 'gallery-grid';
+  const list = loadGallery();
+  if (!list.length) {
+    const h = document.createElement('p');
+    h.className = 'empty-hint';
+    h.textContent = 'Aucune capture. Orientez la chevaliere puis « Ajouter une capture ».';
+    gal.appendChild(h);
+  }
+  for (const item of list) {
+    const cell = document.createElement('div');
+    cell.className = 'gallery-cell';
+    const img = document.createElement('img');
+    img.src = item.url;
+    cell.appendChild(img);
+    const acts = document.createElement('div');
+    acts.className = 'gallery-acts';
+    acts.appendChild(btn('⤓', () => {
+      const a = document.createElement('a');
+      a.href = item.url;
+      a.download = nomFichier + '.png';
+      a.click();
+    }));
+    acts.appendChild(btn('✕', () => {
+      saveGallery(loadGallery().filter((x) => x.id !== item.id));
+      refresh();
+    }));
+    cell.appendChild(acts);
+    gal.appendChild(cell);
+  }
+  secG.appendChild(gal);
+  body.appendChild(secG);
+
+  // --- 2) Export 3D (formats natifs) ---
+  const secE = section('Export 3D');
+  const eRow = document.createElement('div');
+  eRow.className = 'row-btns';
+  eRow.appendChild(btn('GLB (PBR)', async () => {
+    const obj = getObj();
+    if (!obj) return;
+    try {
+      const blob = await exportGLB(obj);
+      downloadBlob(blob, nomFichier + '.glb');
+      toast('GLB exporte (materiaux PBR inclus).');
+    } catch (e) {
+      toast('Export GLB echoue : ' + e.message, true);
+    }
+  }));
+  eRow.appendChild(btn('OBJ + MTL', () => {
+    const obj = getObj();
+    if (!obj) return;
+    const { obj: o, mtl } = exportOBJ(obj);
+    downloadBlob(o, nomFichier + '.obj');
+    downloadBlob(mtl, 'model.mtl');
+    toast('OBJ + MTL exportes (materiaux simples).');
+  }));
+  eRow.appendChild(btn('STL', () => {
+    const obj = getObj();
+    if (!obj) return;
+    downloadBlob(exportSTL(obj, true), nomFichier + '.stl');
+    toast('STL exporte (geometrie seule, sans materiau).');
+  }));
+  secE.appendChild(eRow);
+  const eNote = document.createElement('p');
+  eNote.className = 'empty-hint';
+  eNote.style.marginTop = '6px';
+  eNote.textContent =
+    'GLB : format de reference (PBR + textures). OBJ+MTL : couleurs simples. STL : impression 3D, sans matiere/couleur (normal).';
+  secE.appendChild(eNote);
+  body.appendChild(secE);
+
+  // --- 3) Formats via micro-service optionnel (3DM / STEP / FBX / DWG) ---
+  const secC = section('Autres formats (service de conversion)');
+  const endpoint = localStorage.getItem(ENDPOINT_KEY) || '';
+  const epInput = document.createElement('input');
+  epInput.type = 'text';
+  epInput.className = 'text-input';
+  epInput.placeholder = 'URL du micro-service de conversion (optionnel)';
+  epInput.value = endpoint;
+  epInput.style.width = '100%';
+  epInput.addEventListener('change', () => {
+    localStorage.setItem(ENDPOINT_KEY, epInput.value.trim());
+    refresh();
+  });
+  secC.appendChild(epInput);
+  const cRow = document.createElement('div');
+  cRow.className = 'row-btns';
+  cRow.style.marginTop = '6px';
+  for (const fmt of ['3dm', 'step', 'fbx', 'dwg']) {
+    const b = btn(fmt.toUpperCase(), async () => {
+      const obj = getObj();
+      if (!obj) return;
+      try {
+        const glb = await exportGLB(obj);
+        const blob = await convertViaBackend(endpoint, glb, fmt);
+        downloadBlob(blob, nomFichier + '.' + fmt);
+        toast(`${fmt.toUpperCase()} recu du service de conversion.`);
+      } catch (e) {
+        toast(`Conversion ${fmt.toUpperCase()} echouee : ${e.message}`, true);
+      }
+    });
+    if (!endpoint) {
+      b.disabled = true;
+      b.title =
+        'Pas d\'export propre en pur client (WASM lourds ou lib proprietaire). Renseignez un micro-service de conversion, ou utilisez GLB/OBJ/STL.';
+    }
+    cRow.appendChild(b);
+  }
+  secC.appendChild(cRow);
+  const cNote = document.createElement('p');
+  cNote.className = 'empty-hint';
+  cNote.style.marginTop = '6px';
+  cNote.textContent =
+    '3DM/STEP/FBX/DWG ne s\'exportent pas proprement en pur navigateur. Ces boutons envoient le GLB a un micro-service de conversion que vous fournissez (POST file+format).';
+  secC.appendChild(cNote);
+  body.appendChild(secC);
+
+  // --- 4) Publication Sketchfab ---
+  const secS = section('Publier sur Sketchfab');
+  const tokInput = document.createElement('input');
+  tokInput.type = 'password';
+  tokInput.className = 'text-input';
+  tokInput.placeholder = 'Token API Sketchfab (non enregistre)';
+  tokInput.value = sketchfabToken;
+  tokInput.style.width = '100%';
+  tokInput.addEventListener('input', () => (sketchfabToken = tokInput.value.trim()));
+  secS.appendChild(tokInput);
+  const pubBtn = btn('Publier le GLB', async () => {
+    const obj = getObj();
+    if (!obj) return;
+    if (!sketchfabToken) return toast('Renseignez votre token Sketchfab.', true);
+    toast('Envoi vers Sketchfab…');
+    try {
+      const glb = await exportGLB(obj);
+      const { url } = await uploadToSketchfab({ token: sketchfabToken, glb, name: design.meta.nom, description: 'Chevaliere heraldique' });
+      lastShareLink = url;
+      toast('Publie sur Sketchfab.');
+      refresh();
+    } catch (e) {
+      toast('Sketchfab : ' + e.message, true);
+    }
+  });
+  pubBtn.style.marginTop = '6px';
+  secS.appendChild(pubBtn);
+  const sNote = document.createElement('p');
+  sNote.className = 'empty-hint';
+  sNote.style.marginTop = '6px';
+  sNote.textContent =
+    'Necessite un token utilisateur (jamais stocke). Requiert un acces reseau a api.sketchfab.com : bloque dans un bac a sable a CSP stricte.';
+  secS.appendChild(sNote);
+  body.appendChild(secS);
+
+  // --- 5) Partage (lien) ---
+  const secP = section('Partager un lien');
+  const linkInput = document.createElement('input');
+  linkInput.type = 'text';
+  linkInput.className = 'text-input';
+  linkInput.placeholder = 'Lien a partager (modele Sketchfab, capture hebergee…)';
+  linkInput.value = lastShareLink;
+  linkInput.style.width = '100%';
+  linkInput.addEventListener('input', () => (lastShareLink = linkInput.value.trim()));
+  secP.appendChild(linkInput);
+  const pRow = document.createElement('div');
+  pRow.className = 'row-btns';
+  pRow.style.marginTop = '6px';
+  pRow.appendChild(btn('E-mail', () =>
+    partagerEmail({ sujet: `Ma chevaliere : ${design.meta.nom}`, corps: 'Voici ma chevaliere heraldique :', lien: lastShareLink })
+  ));
+  pRow.appendChild(btn('WhatsApp', () =>
+    partagerWhatsApp({ texte: `Ma chevaliere heraldique « ${design.meta.nom} » :`, lien: lastShareLink })
+  ));
+  secP.appendChild(pRow);
+  const pNote = document.createElement('p');
+  pNote.className = 'empty-hint';
+  pNote.style.marginTop = '6px';
+  pNote.textContent =
+    'E-mail (mailto) et WhatsApp partagent un LIEN, pas le fichier 3D binaire (impossible par ces mecanismes).';
+  secP.appendChild(pNote);
+  body.appendChild(secP);
 
   panel.appendChild(body);
 }

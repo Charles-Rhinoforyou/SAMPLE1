@@ -110,6 +110,11 @@ export class ThreeView {
     this.controls.update();
   }
 
+  /** Renvoie l'objet 3D exportable (anneau + relief du blason). */
+  getExportObject() {
+    return this.ringGroup;
+  }
+
   /**
    * Capture le rendu courant en PNG (dataURL).
    * @returns {string} dataURL image/png
