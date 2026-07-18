@@ -1,0 +1,221 @@
+// Plateforme lessive & pliage — schéma de données.
+// Les enums DOIVENT rester alignés sur packages/shared/src/enums.ts.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  DEMANDEUR
+  TRAVAILLEUR
+}
+
+enum VerifStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum AccessMethod {
+  SPONSORSHIP
+  GENS_DE_CONFIANCE
+}
+
+enum SponsorStatus {
+  PENDING
+  CONFIRMED
+}
+
+enum TaskType {
+  LESSIVE
+  PLIAGE
+  LES_DEUX
+}
+
+enum TaskStatus {
+  OUVERTE
+  ATTRIBUEE
+  EN_COURS
+  TERMINEE
+  PAYEE
+  ANNULEE
+}
+
+enum AppStatus {
+  ENVOYEE
+  ACCEPTEE
+  REFUSEE
+}
+
+enum PaymentStatus {
+  PENDING
+  AUTHORIZED
+  CAPTURED
+  FAILED
+  REFUNDED
+}
+
+model User {
+  id              String       @id @default(cuid())
+  nom             String
+  email           String       @unique
+  telephone       String?
+  passwordHash    String
+  photoUrl        String?
+  bio             String?
+  roles           Role[]
+  verifStatus     VerifStatus  @default(PENDING)
+  accessMethod    AccessMethod?
+  noteMoyenne     Float        @default(0)
+  isAdmin         Boolean      @default(false)
+  invitationCode  String       @unique @default(cuid())
+  stripeAccountId String?
+  createdAt       DateTime     @default(now())
+
+  tasksOwned        Task[]           @relation("owner")
+  applications      Application[]
+  sponsorshipsGiven Sponsorship[]    @relation("sponsor")
+  sponsorshipsGot   Sponsorship[]    @relation("invited")
+  reviewsAuthored   Review[]         @relation("author")
+  reviewsReceived   Review[]         @relation("target")
+  gdcVerification   GdcVerification?
+  messages          Message[]        @relation("messageSender")
+  notifications     Notification[]
+  refreshTokens     RefreshToken[]
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Sponsorship {
+  id            String        @id @default(cuid())
+  sponsor       User          @relation("sponsor", fields: [sponsorId], references: [id])
+  sponsorId     String
+  invitedUser   User          @relation("invited", fields: [invitedUserId], references: [id])
+  invitedUserId String
+  statut        SponsorStatus @default(PENDING)
+  createdAt     DateTime      @default(now())
+
+  @@unique([sponsorId, invitedUserId])
+  @@index([invitedUserId])
+}
+
+// Voie « Gens de Confiance » — repli manuel derrière IdentityVerificationProvider.
+model GdcVerification {
+  id         String      @id @default(cuid())
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String      @unique
+  gdcProfile String
+  proofUrl   String
+  statut     VerifStatus @default(PENDING)
+  reviewedBy String?
+  reviewNote String?
+  createdAt  DateTime    @default(now())
+}
+
+model Task {
+  id           String     @id @default(cuid())
+  owner        User       @relation("owner", fields: [ownerId], references: [id])
+  ownerId      String
+  titre        String
+  description  String
+  type         TaskType
+  zone         String
+  heureDebut   DateTime
+  heureFin     DateTime
+  tauxHoraire  Decimal    @db.Decimal(10, 2)
+  montantTotal Decimal    @db.Decimal(10, 2)
+  statut       TaskStatus @default(OUVERTE)
+  workerId     String?
+  createdAt    DateTime   @default(now())
+
+  applications Application[]
+  payment      Payment?
+  reviews      Review[]
+  messages     Message[]
+
+  @@index([statut])
+  @@index([type])
+}
+
+model Application {
+  id        String    @id @default(cuid())
+  task      Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId    String
+  worker    User      @relation(fields: [workerId], references: [id])
+  workerId  String
+  message   String?
+  statut    AppStatus @default(ENVOYEE)
+  createdAt DateTime  @default(now())
+
+  @@unique([taskId, workerId])
+  @@index([workerId])
+}
+
+model Payment {
+  id         String        @id @default(cuid())
+  task       Task          @relation(fields: [taskId], references: [id])
+  taskId     String        @unique
+  payerId    String
+  payeeId    String
+  montant    Decimal       @db.Decimal(10, 2)
+  commission Decimal       @db.Decimal(10, 2)
+  statut     PaymentStatus @default(PENDING)
+  stripeRef  String?
+  createdAt  DateTime      @default(now())
+}
+
+model Review {
+  id          String   @id @default(cuid())
+  task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId      String
+  author      User     @relation("author", fields: [authorId], references: [id])
+  authorId    String
+  target      User     @relation("target", fields: [targetId], references: [id])
+  targetId    String
+  note        Int
+  commentaire String?
+  createdAt   DateTime @default(now())
+
+  @@unique([taskId, authorId])
+  @@index([targetId])
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId    String
+  sender    User     @relation("messageSender", fields: [senderId], references: [id])
+  senderId  String
+  contenu   String
+  lu        Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([taskId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  type      String
+  payload   Json
+  lu        Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, lu])
+}

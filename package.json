@@ -1,0 +1,20 @@
+{
+  "name": "laundry-platform",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Plateforme de mise en relation particulier-à-particulier pour tâches de lessive et pliage (web + Android, codebase unique).",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build:shared": "pnpm --filter @laundry/shared build",
+    "test": "pnpm --filter @laundry/shared test",
+    "dev:api": "pnpm --filter @laundry/api dev",
+    "dev:web": "pnpm --filter @laundry/client web",
+    "dev:android": "pnpm --filter @laundry/client android",
+    "db:migrate": "pnpm --filter @laundry/api prisma:migrate",
+    "db:seed": "pnpm --filter @laundry/api prisma:seed",
+    "db:generate": "pnpm --filter @laundry/api prisma:generate"
+  }
+}
