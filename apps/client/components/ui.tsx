@@ -157,6 +157,32 @@ export function Badge({
   );
 }
 
+/** Sélecteur de note 1–5 en étoiles. */
+export function StarRating({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange?: (n: number) => void;
+}) {
+  return (
+    <View style={{ flexDirection: "row", gap: spacing.xs }}>
+      {[1, 2, 3, 4, 5].map((n) => (
+        <Pressable
+          key={n}
+          onPress={onChange ? () => onChange(n) : undefined}
+          accessibilityRole="button"
+          accessibilityLabel={`${n} étoile${n > 1 ? "s" : ""}`}
+        >
+          <Text style={{ fontSize: 28, color: n <= value ? colors.warning : colors.textMuted }}>
+            ★
+          </Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,

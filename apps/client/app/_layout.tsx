@@ -24,6 +24,7 @@ export default function RootLayout() {
           <Stack.Screen name="tasks/index" options={{ title: "Annonces" }} />
           <Stack.Screen name="tasks/new" options={{ title: "Nouvelle annonce" }} />
           <Stack.Screen name="tasks/[id]" options={{ title: "Annonce" }} />
+          <Stack.Screen name="messages/[id]" options={{ title: "Messagerie" }} />
           <Stack.Screen name="verify-gdc" options={{ title: "Gens de Confiance" }} />
           <Stack.Screen name="admin" options={{ title: "Back-office" }} />
         </Stack>

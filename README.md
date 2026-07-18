@@ -182,7 +182,7 @@ Cette contrainte **n'est pas implémentée** dans le code (feu vert requis). Un 
 - [x] **Phase 2 — Fondations** : monorepo, backend Fastify + Prisma + auth (JWT/refresh, argon2), logique métier partagée testée, app Expo (web + Android) avec écran d'accueil / démo design system.
 - [x] **Phase 3 — Inscription** : parrainage 5/5 (code d'invitation, activation auto), voie GdC (repli manuel via `IdentityVerificationProvider`), **back-office admin** (liste + validation/rejet), écrans client (inscription, connexion, tableau de bord de progression, soumission GdC, admin). Config **EAS Build** pour publication store.
 - [x] **Phase 4 — Cœur métier** : création d'annonce (heures + taux + **montant auto** calculé côté partagé), découverte/filtre des annonces ouvertes, candidatures, **choix du candidat** (attribution + refus des autres en transaction), transitions de statut (`OUVERTE → ATTRIBUEE → EN_COURS → TERMINEE`, annulation) gardées par la machine à états. Écrans : liste/filtre, création (montant en direct), détail (candidats + choix + suivi).
-- [ ] **Phase 5 — Notation & messagerie.**
+- [x] **Phase 5 — Notation & messagerie** : avis 1–5 + commentaire après `TERMINEE` (demandeur ↔ travailleur, réciprocité, un avis par auteur/tâche), **recalcul de la note moyenne** du profil ; messagerie légère demandeur ↔ candidat retenu (REST + **WebSocket temps réel** par tâche, auth par token). Écrans : notation (étoiles), fil de discussion.
 - [ ] **Phase 6 — Paiement Stripe Connect (mode test).**
 - [ ] **Phase 7 — Design futuriste responsive partout.**
 - [ ] **Phase 8 — Tests, seed, README, polish.**

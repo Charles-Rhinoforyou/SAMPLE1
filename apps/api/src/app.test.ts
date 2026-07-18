@@ -59,6 +59,16 @@ describe("routes publiques", () => {
     const res = await app.inject({ method: "GET", url: "/admin/verifications" });
     expect(res.statusCode).toBe(401);
   });
+
+  it("POST /tasks/:id/reviews sans token -> 401", async () => {
+    const res = await app.inject({ method: "POST", url: "/tasks/t1/reviews" });
+    expect(res.statusCode).toBe(401);
+  });
+
+  it("GET /tasks/:id/messages sans token -> 401", async () => {
+    const res = await app.inject({ method: "GET", url: "/tasks/t1/messages" });
+    expect(res.statusCode).toBe(401);
+  });
 });
 
 describe("gardes d'autorisation", () => {

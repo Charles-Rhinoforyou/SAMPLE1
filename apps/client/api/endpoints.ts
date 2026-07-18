@@ -121,4 +121,41 @@ export const endpoints = {
   startTask: (id: string) => api(`/tasks/${id}/start`, { method: "POST" }),
   completeTask: (id: string) => api(`/tasks/${id}/complete`, { method: "POST" }),
   cancelTask: (id: string) => api(`/tasks/${id}/cancel`, { method: "POST" }),
+
+  // Notation
+  createReview: (taskId: string, note: number, commentaire?: string) =>
+    api<{ noteMoyenne: number }>(`/tasks/${taskId}/reviews`, {
+      method: "POST",
+      body: { note, commentaire },
+    }),
+  taskReviews: (taskId: string) =>
+    api<ReviewItem[]>(`/tasks/${taskId}/reviews`),
+
+  // Messagerie
+  getMessages: (taskId: string) =>
+    api<MessageItem[]>(`/tasks/${taskId}/messages`),
+  sendMessage: (taskId: string, contenu: string) =>
+    api<MessageItem>(`/tasks/${taskId}/messages`, {
+      method: "POST",
+      body: { contenu },
+    }),
 };
+
+export interface ReviewItem {
+  id: string;
+  authorId: string;
+  targetId: string;
+  note: number;
+  commentaire: string | null;
+  createdAt: string;
+  author: { id: string; nom: string };
+}
+
+export interface MessageItem {
+  id: string;
+  taskId: string;
+  senderId: string;
+  contenu: string;
+  createdAt: string;
+  sender: { id: string; nom: string };
+}

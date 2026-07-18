@@ -12,6 +12,15 @@ export function setAccessToken(token: string | null) {
   accessToken = token;
 }
 
+export function getAccessToken(): string | null {
+  return accessToken;
+}
+
+/** URL de base du WebSocket, dérivée de l'API (http→ws, https→wss). */
+export function wsBaseUrl(): string {
+  return BASE_URL.replace(/^http/, "ws");
+}
+
 export async function api<T>(
   path: string,
   options: { method?: string; body?: unknown } = {}

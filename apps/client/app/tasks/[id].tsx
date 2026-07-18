@@ -1,25 +1,34 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { colors, spacing, typography } from "../../theme/tokens";
-import { Card, Button, Badge, TextField } from "../../components/ui";
+import { Card, Button, Badge, TextField, StarRating } from "../../components/ui";
 import { statusBadge } from "../../components/taskStatus";
-import { endpoints, type TaskDetail } from "../../api/endpoints";
+import { endpoints, type TaskDetail, type ReviewItem } from "../../api/endpoints";
 import { useAuth } from "../../state/auth";
 
 export default function TaskDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
   const { user } = useAuth();
   const [task, setTask] = useState<TaskDetail | null>(null);
   const [message, setMessage] = useState("");
+  const [reviews, setReviews] = useState<ReviewItem[]>([]);
+  const [note, setNote] = useState(5);
+  const [comment, setComment] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!id) return;
     setError(null);
     try {
-      setTask(await endpoints.getTask(id));
+      const [t, r] = await Promise.all([
+        endpoints.getTask(id),
+        endpoints.taskReviews(id).catch(() => [] as ReviewItem[]),
+      ]);
+      setTask(t);
+      setReviews(r);
     } catch (e) {
       setError((e as Error).message);
     }
@@ -40,8 +49,15 @@ export default function TaskDetailScreen() {
   }
 
   const isOwner = user?.id === task.owner?.id;
+  const isParty = isOwner || user?.id === task.workerId;
   const alreadyApplied = task.applications.some((a) => a.workerId === user?.id);
   const badge = statusBadge(task.statut);
+  const finished = task.statut === "TERMINEE" || task.statut === "PAYEE";
+  const canReview =
+    finished && isParty && !reviews.some((r) => r.authorId === user?.id);
+  const showMessaging =
+    isParty &&
+    ["ATTRIBUEE", "EN_COURS", "TERMINEE", "PAYEE"].includes(task.statut);
 
   async function act(fn: () => Promise<unknown>) {
     setError(null);
@@ -170,6 +186,60 @@ export default function TaskDetailScreen() {
             </View>
           </Card>
 
+          {/* Messagerie demandeur ↔ candidat retenu */}
+          {showMessaging ? (
+            <Button
+              label="Ouvrir la messagerie"
+              variant="accent"
+              onPress={() => router.push(`/messages/${task.id}`)}
+            />
+          ) : null}
+
+          {/* Notation après réalisation */}
+          {canReview ? (
+            <Card style={{ gap: spacing.sm }}>
+              <Text style={styles.section}>Noter</Text>
+              <Text style={styles.muted}>
+                {isOwner
+                  ? "Notez le travailleur venu réaliser la tâche."
+                  : "Notez le demandeur."}
+              </Text>
+              <StarRating value={note} onChange={setNote} />
+              <TextField
+                label="Commentaire (optionnel)"
+                value={comment}
+                onChangeText={setComment}
+              />
+              <Button
+                label="Envoyer mon avis"
+                variant="primary"
+                onPress={() =>
+                  act(() =>
+                    endpoints.createReview(task.id, note, comment || undefined)
+                  )
+                }
+              />
+            </Card>
+          ) : null}
+
+          {/* Avis déjà déposés */}
+          {reviews.length > 0 ? (
+            <Card style={{ gap: spacing.sm }}>
+              <Text style={styles.section}>Avis</Text>
+              {reviews.map((r) => (
+                <View key={r.id} style={styles.reviewRow}>
+                  <View style={styles.rowBetween}>
+                    <Text style={styles.candidateName}>{r.author.nom}</Text>
+                    <Badge label={`★ ${r.note}`} tone="warning" />
+                  </View>
+                  {r.commentaire ? (
+                    <Text style={styles.muted}>« {r.commentaire} »</Text>
+                  ) : null}
+                </View>
+              ))}
+            </Card>
+          ) : null}
+
           {error ? <Badge label={error} tone="warning" /> : null}
         </View>
       </ScrollView>
@@ -197,4 +267,10 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
   },
   candidateName: { ...typography.h3, color: colors.textPrimary },
+  reviewRow: {
+    gap: spacing.xs,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: spacing.sm,
+  },
 });
