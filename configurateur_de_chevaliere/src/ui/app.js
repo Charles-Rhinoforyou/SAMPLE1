@@ -20,13 +20,14 @@ import { buildCustomSymbolGroup } from '../engine2d/symbol-loader.js';
 import { installInteractions } from '../engine2d/dnd.js';
 import { analyserDesign } from '../core/heraldry-rules.js';
 import { getQuartiers, createQuartier, defaultLayout } from '../core/design-document.js';
+import { GENEALOGY, searchGenealogy } from '../data/genealogy-library.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 const STEPS = [
   { id: 'ecu', label: 'Ecu', active: true },
   { id: 'composition', label: 'Composition', active: true },
-  { id: 'genealogie', label: 'Genealogie', active: false },
+  { id: 'genealogie', label: 'Genealogie', active: true },
   { id: '3d', label: '3D', active: false },
   { id: 'materiau', label: 'Materiau', active: false },
   { id: 'export', label: 'Export / Partage', active: false }
@@ -147,6 +148,9 @@ function buildToolbar(store, ctx) {
   const undoBtn = btn('Annuler', () => store.undo());
   const redoBtn = btn('Retablir', () => store.redo());
   bar.append(undoBtn, redoBtn);
+  const libBtn = btn('Bibliotheque genealogique', () => openLibrary(store));
+  libBtn.classList.add('primary');
+  bar.appendChild(libBtn);
   bar.appendChild(btn('Importer JSON', () => ctx.io.importJson()));
   bar.appendChild(btn('Exporter JSON', () => ctx.io.exportJson()));
   bar.appendChild(btn('Nouveau', () => ctx.io.reset()));
@@ -523,6 +527,87 @@ function deviseControls(store, design) {
     sec.appendChild(colWrap);
   }
   return sec;
+}
+
+/* ===================== BIBLIOTHEQUE GENEALOGIQUE ===================== */
+
+/**
+ * Ouvre l'overlay de la bibliotheque : recherche par nom de famille + apercus
+ * (rendus par le MEME moteur) + chargement dans le configurateur.
+ * @param {import('../core/store.js').Store} store
+ */
+function openLibrary(store) {
+  const overlay = document.createElement('div');
+  overlay.className = 'overlay-modal';
+  const dialog = document.createElement('div');
+  dialog.className = 'modal';
+  overlay.appendChild(dialog);
+
+  const header = document.createElement('div');
+  header.className = 'modal-header';
+  header.innerHTML = '<h2>Bibliotheque genealogique</h2>';
+  const closeBtn = btn('Fermer', () => overlay.remove());
+  header.appendChild(closeBtn);
+  dialog.appendChild(header);
+
+  const searchRow = document.createElement('div');
+  searchRow.className = 'modal-search';
+  const search = document.createElement('input');
+  search.type = 'text';
+  search.placeholder = 'Rechercher un nom de famille (ex. Tour, France, Croix…)';
+  search.className = 'text-input';
+  const info = document.createElement('span');
+  info.className = 'empty-hint';
+  info.textContent = `${GENEALOGY.length} blasons — chaque entree est un document design re-editable.`;
+  searchRow.append(search, info);
+  dialog.appendChild(searchRow);
+
+  const grid = document.createElement('div');
+  grid.className = 'modal-grid';
+  dialog.appendChild(grid);
+
+  const renderCards = (query) => {
+    grid.replaceChildren();
+    const results = searchGenealogy(query);
+    if (!results.length) {
+      const empty = document.createElement('p');
+      empty.className = 'empty-hint';
+      empty.textContent = 'Aucun blason ne correspond a cette recherche.';
+      grid.appendChild(empty);
+      return;
+    }
+    for (const entry of results) {
+      const design = entry.build();
+      const card = document.createElement('div');
+      card.className = 'gene-card';
+      const preview = createShieldSvg();
+      preview.classList.add('gene-preview');
+      renderShield(preview, design, {});
+      card.appendChild(preview);
+      const name = document.createElement('div');
+      name.className = 'gene-name';
+      name.textContent = entry.famille;
+      card.appendChild(name);
+      const blason = document.createElement('div');
+      blason.className = 'gene-blason';
+      blason.textContent = design._blason || '';
+      card.appendChild(blason);
+      const load = btn('Charger', () => {
+        store.replaceState(design);
+        overlay.remove();
+        toast(`Blason « ${entry.famille} » charge — entierement re-editable.`);
+      });
+      load.classList.add('primary');
+      card.appendChild(load);
+      grid.appendChild(card);
+    }
+  };
+  renderCards('');
+  search.addEventListener('input', () => renderCards(search.value));
+
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+  search.focus();
 }
 
 /* ===================== Fabriques ===================== */
