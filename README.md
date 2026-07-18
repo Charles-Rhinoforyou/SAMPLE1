@@ -118,8 +118,12 @@ Pour `eas submit`, place la clé de **service account Google Play** en
 `internal` — passe en `production` dans `eas.json` quand tu es prêt.
 
 > ⚠️ Aucune de ces étapes n'est exécutable sans **tes** comptes et **tes** clés :
-> elles ne doivent pas être committées. Icônes/splash définitifs et fiche store
-> (captures, description, politique de confidentialité) restent à fournir.
+> elles ne doivent pas être committées. La fiche store (captures, description,
+> politique de confidentialité) reste à fournir.
+
+**Icônes & splash** : fournis dans `apps/client/assets/` (icône, icône adaptative
+Android, splash, favicon), thème néon. Régénérables via
+`python3 apps/client/scripts/gen-assets.py` (nécessite Pillow).
 
 ### Tests
 
