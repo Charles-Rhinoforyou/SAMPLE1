@@ -2,12 +2,48 @@ import React from "react";
 import {
   Pressable,
   Text,
+  TextInput,
   View,
   StyleSheet,
   type ViewStyle,
   type StyleProp,
 } from "react-native";
 import { colors, radius, spacing, typography, MIN_TOUCH } from "../theme/tokens";
+
+/** Champ de saisie étiqueté, thème sombre. */
+export function TextField({
+  label,
+  value,
+  onChangeText,
+  placeholder,
+  secureTextEntry,
+  keyboardType,
+  autoCapitalize = "none",
+}: {
+  label: string;
+  value: string;
+  onChangeText: (t: string) => void;
+  placeholder?: string;
+  secureTextEntry?: boolean;
+  keyboardType?: "default" | "email-address" | "numeric";
+  autoCapitalize?: "none" | "sentences" | "words";
+}) {
+  return (
+    <View style={{ gap: spacing.xs, width: "100%" }}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <TextInput
+        style={styles.input}
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor={colors.textMuted}
+        secureTextEntry={secureTextEntry}
+        keyboardType={keyboardType}
+        autoCapitalize={autoCapitalize}
+      />
+    </View>
+  );
+}
 
 /** Carte de surface élevée, réutilisable web + mobile. */
 export function Card({
@@ -107,6 +143,17 @@ const styles = StyleSheet.create({
   btnGhost: { borderWidth: 1, borderColor: colors.cyan, backgroundColor: "transparent" },
   btnPressed: { opacity: 0.8 },
   btnLabel: { ...typography.label, color: "#06121A" },
+  fieldLabel: { ...typography.label, color: colors.textSecondary },
+  input: {
+    minHeight: MIN_TOUCH,
+    backgroundColor: colors.bgElevated,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    color: colors.textPrimary,
+    ...typography.body,
+  },
   badge: {
     alignSelf: "flex-start",
     borderWidth: 1,

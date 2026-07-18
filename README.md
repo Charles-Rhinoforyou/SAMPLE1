@@ -84,10 +84,34 @@ pnpm dev:web              # Expo web (http://localhost:8081)
 
 ```bash
 pnpm dev:android          # ouvre sur émulateur / appareil (Expo Go ou build dev)
-# Build APK/AAB :
-pnpm --filter @laundry/client build:web    # export web statique
-# Pour un build natif Android : `eas build -p android` (EAS) ou `expo run:android`.
 ```
+
+## Publication sur les stores (Android / iOS)
+
+L'app est **prête à publier** via **EAS Build** (config dans `apps/client/eas.json`,
+identifiants dans `apps/client/app.json` : `com.laundry.platform`).
+
+**Prérequis (à ta charge — non fournis dans le code) :**
+- un **compte Google Play Developer** (~25 $, une fois) pour le Play Store ;
+- (optionnel iOS) un **compte Apple Developer** (99 $/an) ;
+- un compte **Expo/EAS** (`npx eas login`).
+
+**Flux de publication Android :**
+```bash
+cd apps/client
+npx eas login
+npx eas build:configure
+npx eas build -p android --profile production      # génère un .aab signé
+npx eas submit -p android --profile production      # dépôt sur Google Play
+```
+Le profil `production` produit un **App Bundle (.aab)** signé (clé gérée par EAS).
+Pour `eas submit`, place la clé de **service account Google Play** en
+`apps/client/play-service-account.json` (ignorée par git). La piste par défaut est
+`internal` — passe en `production` dans `eas.json` quand tu es prêt.
+
+> ⚠️ Aucune de ces étapes n'est exécutable sans **tes** comptes et **tes** clés :
+> elles ne doivent pas être committées. Icônes/splash définitifs et fiche store
+> (captures, description, politique de confidentialité) restent à fournir.
 
 ### Tests
 
@@ -156,7 +180,7 @@ Cette contrainte **n'est pas implémentée** dans le code (feu vert requis). Un 
 
 - [x] **Phase 1 — Cadrage** : stack, schéma de données, arborescence.
 - [x] **Phase 2 — Fondations** : monorepo, backend Fastify + Prisma + auth (JWT/refresh, argon2), logique métier partagée testée, app Expo (web + Android) avec écran d'accueil / démo design system.
-- [ ] **Phase 3 — Inscription** : parrainage 5/5 + voie GdC (repli manuel) + back-office admin.
+- [x] **Phase 3 — Inscription** : parrainage 5/5 (code d'invitation, activation auto), voie GdC (repli manuel via `IdentityVerificationProvider`), **back-office admin** (liste + validation/rejet), écrans client (inscription, connexion, tableau de bord de progression, soumission GdC, admin). Config **EAS Build** pour publication store.
 - [ ] **Phase 4 — Cœur métier** : création d'annonce (heures + taux + montant auto), candidatures, choix du candidat, statuts.
 - [ ] **Phase 5 — Notation & messagerie.**
 - [ ] **Phase 6 — Paiement Stripe Connect (mode test).**

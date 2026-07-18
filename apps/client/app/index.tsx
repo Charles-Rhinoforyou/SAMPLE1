@@ -1,6 +1,7 @@
 import React from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
 import { sponsorshipProgress, computeTaskAmount } from "@laundry/shared";
 import { colors, spacing, typography, radius } from "../theme/tokens";
 import { Card, Button, Badge } from "../components/ui";
@@ -11,6 +12,7 @@ import { useResponsive } from "../components/useResponsive";
  * Tourne à l'identique en web et Android, mise en page responsive.
  */
 export default function Home() {
+  const router = useRouter();
   const { device, columns } = useResponsive();
 
   // Démo : la logique métier partagée alimente directement l'UI.
@@ -35,8 +37,16 @@ export default function Home() {
               sécurité, notez.
             </Text>
             <View style={styles.ctaRow}>
-              <Button label="Publier une tâche" variant="primary" />
-              <Button label="Voir les annonces" variant="ghost" />
+              <Button
+                label="Créer un compte"
+                variant="primary"
+                onPress={() => router.push("/register")}
+              />
+              <Button
+                label="Se connecter"
+                variant="ghost"
+                onPress={() => router.push("/login")}
+              />
             </View>
           </View>
 

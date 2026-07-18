@@ -49,4 +49,49 @@ describe("routes publiques", () => {
     });
     expect(res.statusCode).toBe(400);
   });
+
+  it("POST /verification/gdc sans token -> 401", async () => {
+    const res = await app.inject({ method: "POST", url: "/verification/gdc" });
+    expect(res.statusCode).toBe(401);
+  });
+
+  it("GET /admin/verifications sans token -> 401", async () => {
+    const res = await app.inject({ method: "GET", url: "/admin/verifications" });
+    expect(res.statusCode).toBe(401);
+  });
+});
+
+describe("gardes d'autorisation", () => {
+  function token(payload: {
+    sub: string;
+    roles?: string[];
+    isAdmin?: boolean;
+    verifStatus?: string;
+  }) {
+    return app.jwt.sign({
+      sub: payload.sub,
+      roles: payload.roles ?? ["DEMANDEUR"],
+      isAdmin: payload.isAdmin ?? false,
+      verifStatus: payload.verifStatus ?? "PENDING",
+    });
+  }
+
+  it("un non-admin est refusé sur /admin/stats -> 403", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: "/admin/stats",
+      headers: { authorization: `Bearer ${token({ sub: "u1" })}` },
+    });
+    expect(res.statusCode).toBe(403);
+  });
+
+  it("un compte non vérifié ne peut pas parrainer -> 403", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/sponsorships",
+      headers: { authorization: `Bearer ${token({ sub: "u1" })}` },
+      payload: { invitedCode: "abcd1234" },
+    });
+    expect(res.statusCode).toBe(403);
+  });
 });

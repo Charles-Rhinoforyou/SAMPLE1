@@ -13,9 +13,15 @@
     },
     "android": {
       "package": "com.laundry.platform",
+      "versionCode": 1,
+      "permissions": ["INTERNET", "CAMERA", "READ_MEDIA_IMAGES"],
       "adaptiveIcon": {
         "backgroundColor": "#0A0A14"
       }
+    },
+    "ios": {
+      "bundleIdentifier": "com.laundry.platform",
+      "supportsTablet": true
     },
     "web": {
       "bundler": "metro",

@@ -6,6 +6,9 @@ import { ZodError } from "zod";
 import { config } from "./config.js";
 import authPlugin from "./plugins/auth.js";
 import { authRoutes } from "./modules/auth/routes.js";
+import { sponsorshipRoutes } from "./modules/sponsorship/routes.js";
+import { verificationRoutes } from "./modules/verification/routes.js";
+import { adminRoutes } from "./modules/admin/routes.js";
 
 export async function buildApp() {
   const app = Fastify({ logger: true });
@@ -43,6 +46,9 @@ export async function buildApp() {
   }));
 
   await app.register(authRoutes);
+  await app.register(sponsorshipRoutes);
+  await app.register(verificationRoutes);
+  await app.register(adminRoutes);
 
   return app;
 }
