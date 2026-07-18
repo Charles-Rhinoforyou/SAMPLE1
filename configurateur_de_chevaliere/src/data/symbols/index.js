@@ -18,6 +18,26 @@
 
 export const SYMBOL_VIEWBOX = '0 0 100 100';
 
+// ---------- Utilitaires de generation de tracés (petits meubles) ----------
+
+const r0 = (v) => Math.round(v * 100) / 100;
+
+/** Disque (cercle plein) en unites 0..100. */
+function disc(cx, cy, r) {
+  return `M${cx - r},${cy} a${r},${r} 0 1 0 ${2 * r},0 a${r},${r} 0 1 0 ${-2 * r},0 Z`;
+}
+
+/** Etoile/molette a `points` branches (rayon exterieur/interieur), en un sous-chemin. */
+function star(points, rOut, rIn, cx = 50, cy = 50, rot = -90) {
+  let d = '';
+  for (let i = 0; i < points * 2; i++) {
+    const r = i % 2 ? rIn : rOut;
+    const a = ((rot + (i * 180) / points) * Math.PI) / 180;
+    d += (i ? 'L' : 'M') + r0(cx + r * Math.cos(a)) + ',' + r0(cy + r * Math.sin(a));
+  }
+  return d + 'Z';
+}
+
 export const SYMBOLS = {
   // ---------- Meubles figuratifs ----------
   lion: {
@@ -134,6 +154,99 @@ export const SYMBOLS = {
   bande: {
     nom: 'Bande (diagonale)',
     pathData: 'M8,24 L24,8 L92,76 L76,92 Z'
+  },
+
+  // ---------- Petits meubles (inspires des repertoires heraldiques) ----------
+  besant: {
+    nom: 'Besant / tourteau',
+    pathData: disc(50, 50, 38)
+  },
+  annelet: {
+    nom: 'Annelet (anneau)',
+    fillRule: 'evenodd',
+    pathData: disc(50, 50, 38) + ' ' + disc(50, 50, 23)
+  },
+  losange: {
+    nom: 'Losange',
+    pathData: 'M50,8 L86,50 L50,92 L14,50 Z'
+  },
+  macle: {
+    nom: 'Macle (losange vide)',
+    fillRule: 'evenodd',
+    pathData: 'M50,8 L86,50 L50,92 L14,50 Z M50,26 L70,50 L50,74 L30,50 Z'
+  },
+  fusee: {
+    nom: 'Fusee (losange allonge)',
+    pathData: 'M50,6 L70,50 L50,94 L30,50 Z'
+  },
+  molette: {
+    nom: 'Molette (d\'eperon)',
+    fillRule: 'evenodd',
+    pathData: star(6, 44, 17) + ' ' + disc(50, 50, 8)
+  },
+  quintefeuille: {
+    nom: 'Quintefeuille',
+    fillRule: 'evenodd',
+    // 5 petales (disques) autour du centre + percage central.
+    pathData:
+      disc(50, 24, 17) + ' ' +
+      disc(74.7, 41.97, 17) + ' ' +
+      disc(65.28, 71.03, 17) + ' ' +
+      disc(34.72, 71.03, 17) + ' ' +
+      disc(25.3, 41.97, 17) + ' ' +
+      disc(50, 50, 8)
+  },
+  trefle: {
+    nom: 'Trefle',
+    pathData:
+      disc(50, 30, 18) + ' ' +
+      disc(32, 52, 18) + ' ' +
+      disc(68, 52, 18) + ' ' +
+      'M47,52 L53,52 L54,90 L46,90 Z'
+  },
+  coeur: {
+    nom: 'Coeur',
+    pathData:
+      'M50,34 C50,22 32,16 24,30 C16,46 40,64 50,86 C60,64 84,46 76,30 C68,16 50,22 50,34 Z'
+  },
+  merlette: {
+    nom: 'Merlette (oiseau)',
+    pathData:
+      // Corps + tete + aile + queue, silhouette stylisee (sans bec ni pattes).
+      'M20,52 C20,44 30,38 44,38 C56,38 64,34 70,30 C68,36 66,40 62,42 ' +
+      'C72,42 80,46 84,52 C78,52 74,54 70,58 C74,62 74,68 70,72 ' +
+      'C66,66 60,62 52,62 C40,62 26,60 20,52 Z ' +
+      disc(30, 44, 3)
+  },
+  cloche: {
+    nom: 'Cloche',
+    pathData:
+      'M50,14 C47,14 45,16 45,19 C34,23 30,40 30,60 L24,68 L76,68 L70,60 ' +
+      'C70,40 66,23 55,19 C55,16 53,14 50,14 Z ' +
+      disc(50, 74, 5)
+  },
+  soleil: {
+    nom: 'Soleil',
+    pathData: star(12, 46, 24) + ' ' + disc(50, 50, 22)
+  },
+  clef: {
+    nom: 'Clef',
+    fillRule: 'evenodd',
+    pathData:
+      // Anneau (perce) + tige + panneton.
+      disc(50, 22, 16) + ' ' + disc(50, 22, 7) + ' ' +
+      'M46,34 L54,34 L54,86 L46,86 Z ' +
+      'M54,70 L66,70 L66,78 L54,78 Z M54,58 L62,58 L62,66 L54,66 Z'
+  },
+  gerbe: {
+    nom: 'Gerbe (de ble)',
+    pathData:
+      // Faisceau d'epis lie en son milieu.
+      'M50,10 C46,22 44,34 44,46 L56,46 C56,34 54,22 50,10 Z ' +
+      'M30,16 C30,28 34,38 42,48 L50,44 C44,34 38,24 30,16 Z ' +
+      'M70,16 C70,28 66,38 58,48 L50,44 C56,34 62,24 70,16 Z ' +
+      'M38,48 L62,48 L66,60 C66,78 34,78 34,60 Z ' +
+      'M32,58 L68,58 L68,64 L32,64 Z'
   }
 };
 
@@ -154,7 +267,22 @@ export const SYMBOL_ORDER = [
   'chevron',
   'fasce',
   'pal',
-  'bande'
+  'bande',
+  // Petits meubles.
+  'besant',
+  'annelet',
+  'losange',
+  'macle',
+  'fusee',
+  'molette',
+  'quintefeuille',
+  'trefle',
+  'coeur',
+  'merlette',
+  'cloche',
+  'soleil',
+  'clef',
+  'gerbe'
 ];
 
 /**
