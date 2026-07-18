@@ -247,6 +247,100 @@ export const SYMBOLS = {
       'M70,16 C70,28 66,38 58,48 L50,44 C56,34 62,24 70,16 Z ' +
       'M38,48 L62,48 L66,60 C66,78 34,78 34,60 Z ' +
       'M32,58 L68,58 L68,64 L32,64 Z'
+  },
+
+  // ---------- Petits meubles (2e lot : objets & nature) ----------
+  billette: {
+    nom: 'Billette',
+    pathData: 'M36,16 H64 V84 H36 Z'
+  },
+  ancre: {
+    nom: 'Ancre',
+    fillRule: 'evenodd',
+    pathData:
+      disc(50, 16, 8) + ' ' + disc(50, 16, 4) + ' ' + // organeau (anneau perce)
+      'M47,22 H53 V78 H47 Z ' + // verge
+      'M36,32 H64 V38 H36 Z ' + // jas (traverse)
+      'M50,80 C34,80 22,66 22,50 L30,50 C30,62 38,70 50,72 C62,70 70,62 70,50 L78,50 C78,66 66,80 50,80 Z ' + // bras
+      'M16,52 L24,42 L30,52 Z M70,52 L76,42 L84,52 Z' // becs
+  },
+  hache: {
+    nom: 'Hache',
+    pathData:
+      'M47,14 H53 V86 H47 Z ' + // manche
+      // Fer a taillant courbe (tranchant a droite) avec barbe basse.
+      'M53,18 L66,17 C82,24 86,40 80,52 C76,44 66,40 53,40 Z ' +
+      'M53,40 C63,40 70,44 72,52 C66,58 60,60 53,60 Z'
+  },
+  marteau: {
+    nom: 'Marteau',
+    pathData:
+      'M30,18 H70 V32 L62,38 L38,38 L30,32 Z ' + // tete
+      'M46,36 H54 V86 H46 Z' // manche
+  },
+  fleche: {
+    nom: 'Fleche',
+    pathData:
+      'M50,8 L61,30 L54,30 L54,34 L46,34 L46,30 L39,30 Z ' + // pointe
+      'M47,34 H53 V78 H47 Z ' + // fut
+      'M47,66 L37,84 L47,78 Z M53,66 L63,84 L53,78 Z' // empennage
+  },
+  'fer-a-cheval': {
+    nom: 'Fer a cheval',
+    pathData:
+      'M26,84 C6,58 14,20 50,16 C86,20 94,58 74,84 L62,76 C78,54 72,30 50,28 C28,30 22,54 38,76 Z'
+  },
+  cor: {
+    nom: 'Cor (de chasse)',
+    pathData:
+      'M20,52 A30,30 0 1 1 78,58 L68,56 A20,20 0 1 0 30,50 Z ' + // corps
+      disc(20, 52, 5) // embouchure
+  },
+  arbre: {
+    nom: 'Arbre',
+    pathData:
+      'M50,10 C32,10 22,26 32,40 C22,50 32,64 44,60 C48,66 56,66 60,60 C72,64 82,50 72,40 C80,26 66,10 50,10 Z ' + // frondaison
+      'M45,56 H55 V88 H45 Z' // fut
+  },
+  feuille: {
+    nom: 'Feuille',
+    pathData:
+      'M50,10 C30,24 26,56 50,90 C74,56 70,24 50,10 Z ' +
+      'M49,20 H51 V84 H49 Z'
+  },
+  gland: {
+    nom: 'Gland',
+    pathData:
+      'M48,26 H52 V34 H48 Z ' + // pedoncule
+      'M34,42 C34,34 66,34 66,42 C66,47 34,47 34,42 Z ' + // cupule
+      'M37,46 C37,44 63,44 63,46 C63,74 37,74 37,46 Z' // fruit
+  },
+  abeille: {
+    nom: 'Abeille',
+    pathData:
+      disc(50, 26, 8) + ' ' + // tete
+      'M50,32 C40,32 36,44 36,58 C36,72 44,82 50,82 C56,82 64,72 64,58 C64,44 60,32 50,32 Z ' + // corps
+      'M38,38 C22,30 18,44 32,50 Z M62,38 C78,30 82,44 68,50 Z' // ailes
+  },
+  poisson: {
+    nom: 'Poisson',
+    pathData:
+      'M18,50 C30,36 60,36 74,50 C60,64 30,64 18,50 Z ' + // corps
+      'M74,50 L88,38 L84,50 L88,62 Z' // queue
+  },
+  chateau: {
+    nom: 'Chateau',
+    fillRule: 'evenodd',
+    pathData:
+      'M18,36 L18,82 L38,82 L38,36 L34,36 L34,40 L30,40 L30,36 L26,36 L26,40 L22,40 L22,36 Z ' + // tour gauche
+      'M62,36 L62,82 L82,82 L82,36 L78,36 L78,40 L74,40 L74,36 L70,36 L70,40 L66,40 L66,36 Z ' + // tour droite
+      'M38,52 L38,82 L62,82 L62,52 L58,52 L58,56 L54,56 L54,52 L50,52 L50,56 L46,56 L46,52 L42,52 L42,56 L38,56 Z ' + // muraille crenelee
+      'M46,82 L46,66 A4,4 0 0 1 54,66 L54,82 Z' // porte (trou)
+  },
+  flamme: {
+    nom: 'Flamme',
+    pathData:
+      'M50,10 C58,26 66,32 62,46 C70,44 72,54 66,62 C68,72 60,82 50,84 C40,82 32,72 34,62 C28,54 30,44 38,46 C34,32 42,26 50,10 Z'
   }
 };
 
@@ -282,7 +376,22 @@ export const SYMBOL_ORDER = [
   'cloche',
   'soleil',
   'clef',
-  'gerbe'
+  'gerbe',
+  // Petits meubles (2e lot : objets & nature).
+  'billette',
+  'ancre',
+  'hache',
+  'marteau',
+  'fleche',
+  'fer-a-cheval',
+  'cor',
+  'arbre',
+  'feuille',
+  'gland',
+  'abeille',
+  'poisson',
+  'chateau',
+  'flamme'
 ];
 
 /**
