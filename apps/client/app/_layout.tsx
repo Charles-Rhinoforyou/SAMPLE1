@@ -27,6 +27,7 @@ export default function RootLayout() {
           <Stack.Screen name="messages/[id]" options={{ title: "Messagerie" }} />
           <Stack.Screen name="payments" options={{ title: "Paiements" }} />
           <Stack.Screen name="design" options={{ title: "Design system" }} />
+          <Stack.Screen name="notifications" options={{ title: "Notifications" }} />
           <Stack.Screen name="verify-gdc" options={{ title: "Gens de Confiance" }} />
           <Stack.Screen name="admin" options={{ title: "Back-office" }} />
         </Stack>

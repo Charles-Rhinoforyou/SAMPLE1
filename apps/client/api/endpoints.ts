@@ -75,6 +75,17 @@ export const endpoints = {
   login: (body: LoginInput) =>
     api<AuthResponse>("/auth/login", { method: "POST", body }),
   me: () => api<MeResponse>("/auth/me"),
+  refresh: (refreshToken: string) =>
+    api<{ accessToken: string; refreshToken: string }>("/auth/refresh", {
+      method: "POST",
+      body: { refreshToken },
+    }),
+  notifications: () =>
+    api<{ items: NotificationItem[]; unread: number }>("/notifications"),
+  markNotificationRead: (id: string) =>
+    api(`/notifications/${id}/read`, { method: "POST" }),
+  markAllNotificationsRead: () =>
+    api("/notifications/read-all", { method: "POST" }),
   submitGdc: (body: GdcVerificationInput) =>
     api<{ status: string; message: string }>("/verification/gdc", {
       method: "POST",
@@ -191,4 +202,12 @@ export interface MessageItem {
   contenu: string;
   createdAt: string;
   sender: { id: string; nom: string };
+}
+
+export interface NotificationItem {
+  id: string;
+  type: string;
+  payload: { message?: string; [k: string]: unknown };
+  lu: boolean;
+  createdAt: string;
 }

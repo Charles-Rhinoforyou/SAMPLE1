@@ -57,13 +57,17 @@ export interface PaymentProvider {
 export class MockPaymentProvider implements PaymentProvider {
   readonly mode = "mock" as const;
 
-  async createConnectAccount(): Promise<ConnectAccount> {
+  async createConnectAccount(_email: string): Promise<ConnectAccount> {
     return { accountId: `acct_mock_${Date.now()}` };
   }
-  async createAccountLink(): Promise<AccountLink> {
+  async createAccountLink(
+    _accountId: string,
+    _refreshUrl: string,
+    _returnUrl: string
+  ): Promise<AccountLink> {
     return { url: "https://connect.stripe.test/onboarding/mock" };
   }
-  async getAccountStatus(): Promise<AccountStatus> {
+  async getAccountStatus(_accountId: string): Promise<AccountStatus> {
     // En mock, on considère l'onboarding complété pour dérouler le flux.
     return { chargesEnabled: true, payoutsEnabled: true, detailsSubmitted: true };
   }
@@ -79,7 +83,7 @@ export class MockPaymentProvider implements PaymentProvider {
   async capturePaymentIntent(id: string): Promise<IntentResult> {
     return { id, clientSecret: null, status: "succeeded" };
   }
-  async refund(): Promise<{ status: string }> {
+  async refund(_paymentIntentId: string): Promise<{ status: string }> {
     return { status: "refunded" };
   }
 }

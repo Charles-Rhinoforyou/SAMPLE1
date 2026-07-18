@@ -14,6 +14,7 @@ import { reviewRoutes } from "./modules/reviews/routes.js";
 import { messagingRoutes } from "./modules/messaging/routes.js";
 import { paymentRoutes } from "./modules/payments/routes.js";
 import { webhookRoutes } from "./modules/payments/webhook.js";
+import { notificationRoutes } from "./modules/notifications/routes.js";
 
 export async function buildApp() {
   const app = Fastify({ logger: true });
@@ -59,6 +60,7 @@ export async function buildApp() {
   await app.register(messagingRoutes);
   await app.register(paymentRoutes);
   await app.register(webhookRoutes);
+  await app.register(notificationRoutes);
 
   return app;
 }

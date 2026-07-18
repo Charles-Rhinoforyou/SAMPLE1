@@ -8,11 +8,11 @@ import { useAuth } from "../state/auth";
 
 export default function Dashboard() {
   const router = useRouter();
-  const { user, refreshMe, logout } = useAuth();
+  const { user, refreshMe, logout, initializing } = useAuth();
 
   useEffect(() => {
-    if (!user) router.replace("/login");
-  }, [user]);
+    if (!initializing && !user) router.replace("/login");
+  }, [user, initializing]);
 
   if (!user) return null;
 
@@ -97,6 +97,11 @@ export default function Dashboard() {
             />
           ) : null}
 
+          <Button
+            label="Notifications"
+            variant="ghost"
+            onPress={() => router.push("/notifications")}
+          />
           <Button label="Rafraîchir" variant="ghost" onPress={() => void refreshMe()} />
           <Button
             label="Se déconnecter"

@@ -83,6 +83,11 @@ describe("routes publiques", () => {
     expect(res.statusCode).toBe(401);
   });
 
+  it("GET /notifications sans token -> 401", async () => {
+    const res = await app.inject({ method: "GET", url: "/notifications" });
+    expect(res.statusCode).toBe(401);
+  });
+
   it("POST /payments/webhook sans clé Stripe -> 200 (mode mock)", async () => {
     const res = await app.inject({
       method: "POST",
