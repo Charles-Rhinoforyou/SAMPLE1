@@ -1,17 +1,46 @@
 /**
  * design-document.js — Schema et (de)serialisation du "document design".
  *
- * Le document design est l'UNIQUE source de verite : tout le blason (et, aux
- * phases suivantes, la composition, la couronne, la devise et les parametres 3D)
- * tient dans cet objet JSON. Le recharger reconstruit exactement le design.
+ * Le document design est l'UNIQUE source de verite : tout le blason tient dans
+ * cet objet JSON. Le recharger reconstruit exactement le design.
  *
- * Regle de conception : les champs des phases futures (composition, couronne 3D...)
- * sont deja prevus comme OPTIONNELS afin de ne jamais casser la compatibilite du
- * schema au fil des phases.
+ * Phase 2 : introduction des QUARTIERS. L'ecu peut etre divise par une PARTITION
+ * (parti, coupe, ecartele...). Chaque region est un mini-blason complet
+ * (champ + meubles + disposition parametrique), stocke dans `ecu.quartiers[]`.
+ * Un ecu "plain" a un seul quartier couvrant tout l'ecu.
+ *
+ * Compatibilite : un document de la Phase 1 (ecu.champ + meubles au niveau racine)
+ * est migre automatiquement vers un quartier unique.
  */
 
-// Version du schema. Sert a migrer d'anciens documents si le format evolue.
-export const DESIGN_SCHEMA_VERSION = 1;
+export const DESIGN_SCHEMA_VERSION = 2;
+
+/** Disposition parametrique par defaut d'un quartier. */
+export function defaultLayout() {
+  return {
+    disposition: 'libre', // 'libre' | 'pal' | 'fasce' | 'bande' | 'barre' | 'grille' | 'orle' | 'cercle' | 'rangs' | 'chef' | 'pointe'
+    nombre: 3, // nombre d'elements pilote par la disposition (steppers UI)
+    marge: 22, // marge interieure (unites d'ecu)
+    espacement: 1, // facteur d'espacement entre elements
+    echelle: 1, // facteur d'echelle global des meubles du quartier
+    cols: 2, // colonnes (grille)
+    rows: 2 // lignes (grille)
+  };
+}
+
+/**
+ * Cree un quartier (mini-blason d'une region de l'ecu).
+ * @param {string} [tincture]
+ * @returns {object}
+ */
+export function createQuartier(tincture = 'azur') {
+  return {
+    id: genId('q'),
+    champ: { tincture },
+    meubles: [],
+    layout: defaultLayout()
+  };
+}
 
 /**
  * Cree un document design vierge et valide.
@@ -25,74 +54,88 @@ export function createEmptyDesign() {
       creeLe: new Date().toISOString(),
       modifieLe: new Date().toISOString()
     },
-    // --- Ecu (Phase 1) ---
     ecu: {
-      forme: 'francais-moderne', // id d'une forme de src/data/shields.js
-      champ: {
-        tincture: 'azur' // teinture de fond (id de src/data/tinctures.js)
-      }
+      forme: 'francais-moderne',
+      partition: 'plain', // id d'une partition de engine2d/composition.js
+      quartiers: [createQuartier('azur')]
     },
-    // --- Meubles poses sur l'ecu (Phase 1) ---
-    // Chaque meuble reference un symbole (bibliotheque ou perso) et porte sa
-    // transformation dans le repere normalise de l'ecu (viewBox 0 0 200 240).
-    meubles: [],
-    // --- Symboles personnalises importes par l'utilisateur (Phase 1) ---
-    // Stockes DANS le document pour que l'export JSON soit autonome.
+    // Symboles personnalises importes (stockes dans le document = export autonome).
     customSymbols: [],
-    // --- Emplacements reserves pour les phases suivantes (optionnels) ---
-    composition: null, // Phase 2 : partitions (parti/coupe/ecartele)
-    couronne: null, // Phase 2 : timbre/couronne par titre
-    devise: null, // Phase 2 : texte + listel
-    ring3d: null, // Phase 3+ : parametres de la chevaliere 3D
-    materiau: null // Phase 5 : materiau PBR
+    // Couronne / timbre par titre (Phase 2).
+    couronne: { type: 'aucune' },
+    // Devise sur listel (Phase 2).
+    devise: {
+      texte: '',
+      visible: false,
+      police: 'Georgia, "Times New Roman", serif',
+      taille: 16,
+      couleur: '#f4f6f7',
+      casse: 'majuscules', // 'normale' | 'majuscules'
+      listel: true, // afficher la banderole
+      couleurListel: 'gueules',
+      courbure: 14 // fleche de la courbure du listel (0 = droit)
+    },
+    // Emplacements des phases suivantes (optionnels).
+    ring3d: null,
+    materiau: null
   };
 }
 
 /**
- * Cree un meuble (charge heraldique) pose sur l'ecu.
+ * Cree un meuble (charge heraldique) pose dans un quartier.
  * @param {object} opts
  * @returns {object}
  */
 export function createMeuble({ symbolId, tincture = 'or', x = 100, y = 120, scale = 1, rotation = 0, z = 0 }) {
   return {
     id: genId('meuble'),
-    symbolId, // id de bibliotheque (ex. 'lion') ou de symbole perso (ex. 'custom-xxxx')
-    tincture, // teinture appliquee au meuble
-    x, // position X (centre) dans le repere ecu 0..200
-    y, // position Y (centre) dans le repere ecu 0..240
-    scale, // facteur d'echelle
-    rotation, // rotation en degres
-    z // ordre de superposition (plus grand = au-dessus)
+    symbolId,
+    tincture,
+    x,
+    y,
+    scale,
+    rotation,
+    z
   };
 }
 
-/**
- * Genere un identifiant court unique (suffisant cote client).
- * @param {string} prefix
- * @returns {string}
- */
+/** Genere un identifiant court unique. */
 export function genId(prefix = 'id') {
   return `${prefix}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
-/**
- * Clone profond d'un document design (structure JSON pure, donc clonable ainsi).
- * @param {object} design
- * @returns {object}
- */
+/** Clone profond d'un document design. */
 export function cloneDesign(design) {
-  // structuredClone est disponible sur tous les navigateurs modernes vises.
   return structuredClone(design);
 }
 
+// ---------- Accesseurs transverses (quartiers / meubles) ----------
+
+/** Renvoie la liste des quartiers du design. */
+export function getQuartiers(design) {
+  return design?.ecu?.quartiers || [];
+}
+
 /**
- * Serialise le document en chaine JSON indentee (pour export .json).
+ * Retrouve un meuble par id a travers tous les quartiers.
  * @param {object} design
- * @returns {string}
+ * @param {string} meubleId
+ * @returns {{quartier:object, quartierIndex:number, meuble:object}|null}
  */
+export function findMeuble(design, meubleId) {
+  const quartiers = getQuartiers(design);
+  for (let i = 0; i < quartiers.length; i++) {
+    const m = (quartiers[i].meubles || []).find((x) => x.id === meubleId);
+    if (m) return { quartier: quartiers[i], quartierIndex: i, meuble: m };
+  }
+  return null;
+}
+
+// ---------- (De)serialisation ----------
+
+/** Serialise le document en JSON indente (export .json). */
 export function serializeDesign(design) {
   const copy = cloneDesign(design);
-  // On ne persiste pas les champs internes prefixes par '_'.
   for (const key of Object.keys(copy)) {
     if (key.startsWith('_')) delete copy[key];
   }
@@ -100,12 +143,7 @@ export function serializeDesign(design) {
   return JSON.stringify(copy, null, 2);
 }
 
-/**
- * Deserialise une chaine JSON en document design valide (avec migration douce).
- * @param {string} json
- * @returns {object}
- * @throws {Error} si le JSON est invalide ou incompatible
- */
+/** Deserialise une chaine JSON en document design valide (migration douce). */
 export function deserializeDesign(json) {
   let parsed;
   try {
@@ -120,22 +158,50 @@ export function deserializeDesign(json) {
 }
 
 /**
- * Fusionne un document importe avec le schema courant pour combler les champs
- * manquants (compatibilite ascendante et descendante douce).
+ * Migre/normalise un document importe vers le schema courant.
  * @param {object} parsed
  * @returns {object}
  */
 export function migrateDesign(parsed) {
   const base = createEmptyDesign();
-  // Fusion superficielle raisonnee : on garde les valeurs importees quand elles
-  // existent, sinon on retombe sur les valeurs par defaut du schema courant.
-  return {
+  const out = {
     ...base,
     ...parsed,
     version: DESIGN_SCHEMA_VERSION,
     meta: { ...base.meta, ...(parsed.meta || {}) },
-    ecu: { ...base.ecu, ...(parsed.ecu || {}), champ: { ...base.ecu.champ, ...(parsed.ecu?.champ || {}) } },
-    meubles: Array.isArray(parsed.meubles) ? parsed.meubles : [],
-    customSymbols: Array.isArray(parsed.customSymbols) ? parsed.customSymbols : []
+    customSymbols: Array.isArray(parsed.customSymbols) ? parsed.customSymbols : [],
+    couronne: { ...base.couronne, ...(parsed.couronne || {}) },
+    devise: { ...base.devise, ...(parsed.devise || {}) }
+  };
+
+  // --- Ecu / quartiers ---
+  const parsedEcu = parsed.ecu || {};
+  if (Array.isArray(parsedEcu.quartiers) && parsedEcu.quartiers.length) {
+    // Deja au format Phase 2.
+    out.ecu = {
+      forme: parsedEcu.forme || base.ecu.forme,
+      partition: parsedEcu.partition || 'plain',
+      quartiers: parsedEcu.quartiers.map(normalizeQuartier)
+    };
+  } else {
+    // Migration Phase 1 -> un quartier unique reprenant champ + meubles racine.
+    const q = createQuartier(parsedEcu.champ?.tincture || 'azur');
+    q.meubles = Array.isArray(parsed.meubles) ? parsed.meubles : [];
+    out.ecu = {
+      forme: parsedEcu.forme || base.ecu.forme,
+      partition: 'plain',
+      quartiers: [q]
+    };
+  }
+  return out;
+}
+
+/** Normalise un quartier importe (comble les champs manquants). */
+function normalizeQuartier(q) {
+  return {
+    id: q.id || genId('q'),
+    champ: { tincture: q.champ?.tincture || 'azur' },
+    meubles: Array.isArray(q.meubles) ? q.meubles : [],
+    layout: { ...defaultLayout(), ...(q.layout || {}) }
   };
 }

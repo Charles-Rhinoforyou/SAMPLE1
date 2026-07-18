@@ -1,71 +1,80 @@
 /**
- * ui/app.js — Construction de l'interface et cablage au store.
+ * ui/app.js — Construction de l'interface et cablage au store (Phase 1 + 2).
  *
- * L'UI est volontairement en DOM natif (pas de framework) pour rester DECOUPLEE
- * des moteurs 2D/3D. Elle :
- *   - construit le wizard d'etapes, la barre d'outils et les 3 panneaux ;
- *   - s'abonne au store pour rafraichir le rendu SVG et les panneaux ;
- *   - delegue le rendu du blason a engine2d/shield-renderer et les interactions
- *     a engine2d/dnd.
+ * L'UI est en DOM natif (pas de framework) pour rester DECOUPLEE des moteurs.
+ * Etapes actives : Ecu + Composition. Les suivantes restent "a venir".
  *
- * Phase 1 : seule l'etape "Ecu" est active ; les etapes suivantes sont affichees
- * en "a venir" (degradation gracieuse).
+ * Etat local (hors document design) :
+ *   - selectedId : meuble selectionne ;
+ *   - activeQuartier : quartier en cours d'edition (depot, champ, disposition) ;
+ *   - guides : guides d'aimantation transitoires (pendant un deplacement).
  */
 
 import { SHIELDS, SHIELD_ORDER, SHIELD_VIEWBOX } from '../data/shields.js';
 import { SYMBOLS, SYMBOL_ORDER, SYMBOL_VIEWBOX, resolveSymbol } from '../data/symbols/index.js';
-import { TINCTURES, TINCTURE_ORDER, fillForTincture } from '../data/tinctures.js';
+import { TINCTURES, TINCTURE_ORDER } from '../data/tinctures.js';
+import { PARTITIONS, PARTITION_ORDER, partitionCount, getRegions, pointsToSvg } from '../engine2d/composition.js';
+import { CROWNS, CROWN_ORDER, CROWN_VIEWBOX, getCrown } from '../data/crowns.js';
 import { createShieldSvg, renderShield } from '../engine2d/shield-renderer.js';
-import { buildCustomSymbolGroup, parseCustomSvg } from '../engine2d/symbol-loader.js';
+import { buildCustomSymbolGroup } from '../engine2d/symbol-loader.js';
 import { installInteractions } from '../engine2d/dnd.js';
 import { analyserDesign } from '../core/heraldry-rules.js';
+import { getQuartiers, createQuartier, defaultLayout } from '../core/design-document.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
-// Etapes du wizard (Phase 1 : seule "Ecu" est operationnelle).
 const STEPS = [
   { id: 'ecu', label: 'Ecu', active: true },
-  { id: 'composition', label: 'Composition', active: false },
+  { id: 'composition', label: 'Composition', active: true },
   { id: 'genealogie', label: 'Genealogie', active: false },
   { id: '3d', label: '3D', active: false },
   { id: 'materiau', label: 'Materiau', active: false },
   { id: 'export', label: 'Export / Partage', active: false }
 ];
 
-/**
- * Monte l'application dans un conteneur.
- * @param {HTMLElement} root
- * @param {object} ctx { store, io } — io fournit import/export JSON (main.js)
- */
+const DISPOSITIONS = [
+  ['libre', 'Libre (manuel)'],
+  ['pal', 'En pal (colonne)'],
+  ['fasce', 'En fasce (ligne)'],
+  ['bande', 'En bande (diag. \\)'],
+  ['barre', 'En barre (diag. /)'],
+  ['grille', 'Grille N x M'],
+  ['rangs', 'Rangs (2-1, 3-2-1...)'],
+  ['cercle', 'En cercle / rayonnant'],
+  ['orle', 'En orle (peripherie)'],
+  ['chef', 'En chef (haut)'],
+  ['pointe', 'En pointe (bas)']
+];
+
 export function mountApp(root, ctx) {
   const { store } = ctx;
-  let selectedId = null; // etat local de selection (hors document design)
+  let selectedId = null;
+  let activeQuartier = 0;
+  let guides = [];
 
-  const setSelected = (id) => {
-    selectedId = id;
-    refresh();
-  };
+  const setSelected = (id) => { selectedId = id; refresh(); };
   const getSelected = () => selectedId;
+  const setActiveQuartier = (i) => { activeQuartier = i; selectedId = null; refresh(); };
+  const getActiveQuartier = () => activeQuartier;
+  const setGuides = (g) => { guides = g; refresh(); };
 
-  // --- Squelette ---
+  // Squelette.
   root.innerHTML = '';
   root.appendChild(buildHeader(store, ctx));
   const layout = document.createElement('div');
   layout.className = 'layout';
-
   const leftPanel = document.createElement('aside');
   leftPanel.className = 'panel';
   const centerPanel = document.createElement('section');
   centerPanel.className = 'panel';
   const rightPanel = document.createElement('aside');
   rightPanel.className = 'panel';
-
   layout.append(leftPanel, centerPanel, rightPanel);
   root.appendChild(layout);
   root.appendChild(buildToastHost());
 
-  // --- Scene 2D centrale ---
-  centerPanel.innerHTML = '<h2>Ecu</h2>';
+  // Scene 2D.
+  centerPanel.innerHTML = '<h2>Blason</h2>';
   const stage = document.createElement('div');
   stage.className = 'stage panel-body';
   const svg = createShieldSvg();
@@ -73,56 +82,50 @@ export function mountApp(root, ctx) {
   const hint = document.createElement('p');
   hint.className = 'hint';
   hint.textContent =
-    'Glissez un meuble depuis la palette. Cliquez pour selectionner, glissez pour deplacer, poignees pour tourner/redimensionner, Suppr pour effacer.';
+    'Glissez un meuble dans le quartier actif. En disposition « Libre », deplacez a la souris (aimantation au centre et aux voisins). Choisissez une disposition pour un placement automatique.';
   stage.appendChild(hint);
   centerPanel.appendChild(stage);
 
-  // --- Interactions (une seule installation) ---
-  installInteractions({ svg, store, getSelected, setSelected });
+  installInteractions({ svg, store, getSelected, setSelected, getActiveQuartier, setGuides });
 
-  // --- Rafraichissement complet a chaque changement d'etat ---
   function refresh() {
     const design = store.getState();
+    // Borne le quartier actif si la partition a change.
+    const nQ = getQuartiers(design).length;
+    if (activeQuartier >= nQ) activeQuartier = nQ - 1;
+    if (activeQuartier < 0) activeQuartier = 0;
+
     const warnings = analyserDesign(design);
     const warnIds = new Set(warnings.map((w) => w.meubleId));
-    // Rendu du blason.
-    renderShield(svg, design, { selectedId, warnMeubleIds: warnIds });
-    // Panneaux.
-    renderLeftPanel(leftPanel, { store, design, ctx });
+    renderShield(svg, design, { selectedId, warnMeubleIds: warnIds, activeQuartier, guides });
+    renderLeftPanel(leftPanel, { store, design, ctx, activeQuartier, setActiveQuartier });
     renderRightPanel(rightPanel, { store, design, selectedId, setSelected, warnings });
   }
 
   store.subscribe(refresh);
 }
 
-/* ============================================================
- *  EN-TETE : titre + wizard + barre d'outils
- * ============================================================ */
+/* ===================== EN-TETE ===================== */
 
 function buildHeader(store, ctx) {
   const header = document.createElement('header');
   header.className = 'app-header';
-
   const titleRow = document.createElement('div');
   titleRow.className = 'app-title';
   titleRow.innerHTML =
     '<h1>Configurateur de chevaliere</h1>' +
-    '<span class="subtitle">Blason heraldique 2D &rarr; chevaliere 3D &middot; Phase 1</span>';
+    '<span class="subtitle">Blason heraldique 2D &rarr; chevaliere 3D &middot; Phase 2</span>';
   header.appendChild(titleRow);
 
-  // Wizard d'etapes.
   const wizard = document.createElement('nav');
   wizard.className = 'wizard';
   STEPS.forEach((s, i) => {
     const el = document.createElement('div');
-    el.className = 'step' + (i === 0 ? ' active' : ' todo');
-    el.title = s.active ? '' : 'Etape a venir (phase suivante)';
+    el.className = 'step' + (s.active ? (i === 0 ? ' active' : ' active-2') : ' todo');
     el.innerHTML = `<span class="num">${i + 1}</span> ${s.label}` + (s.active ? '' : ' <em style="font-size:.7rem">(a venir)</em>');
     wizard.appendChild(el);
   });
   header.appendChild(wizard);
-
-  // Barre d'outils.
   header.appendChild(buildToolbar(store, ctx));
   return header;
 }
@@ -130,8 +133,6 @@ function buildHeader(store, ctx) {
 function buildToolbar(store, ctx) {
   const bar = document.createElement('div');
   bar.className = 'toolbar';
-
-  // Nom du design.
   const nameInput = document.createElement('input');
   nameInput.type = 'text';
   nameInput.placeholder = 'Nom du blason';
@@ -140,37 +141,26 @@ function buildToolbar(store, ctx) {
     store.commit((d) => (d.meta.nom = nameInput.value || 'Blason sans nom'), 'renommer');
   });
   bar.appendChild(nameInput);
-
   const spacer = document.createElement('div');
   spacer.className = 'spacer';
   bar.appendChild(spacer);
-
-  // Undo / Redo.
   const undoBtn = btn('Annuler', () => store.undo());
   const redoBtn = btn('Retablir', () => store.redo());
   bar.append(undoBtn, redoBtn);
-
-  // Import / Export JSON + nouveau.
   bar.appendChild(btn('Importer JSON', () => ctx.io.importJson()));
   bar.appendChild(btn('Exporter JSON', () => ctx.io.exportJson()));
   bar.appendChild(btn('Nouveau', () => ctx.io.reset()));
-
-  // Mise a jour de l'etat des boutons undo/redo a chaque changement.
   store.subscribe(() => {
     undoBtn.disabled = !store.canUndo();
     redoBtn.disabled = !store.canRedo();
-    // Resynchroniser le champ nom si change ailleurs (import/undo).
     if (document.activeElement !== nameInput) nameInput.value = store.getState().meta.nom;
   });
-
   return bar;
 }
 
-/* ============================================================
- *  PANNEAU GAUCHE : formes d'ecu, palette de meubles, teintures du champ, import
- * ============================================================ */
+/* ===================== PANNEAU GAUCHE ===================== */
 
-function renderLeftPanel(panel, { store, design, ctx }) {
+function renderLeftPanel(panel, { store, design, ctx, activeQuartier, setActiveQuartier }) {
   panel.innerHTML = '<h2>Composition de l\'ecu</h2>';
   const body = document.createElement('div');
   body.className = 'panel-body';
@@ -190,139 +180,193 @@ function renderLeftPanel(panel, { store, design, ctx }) {
     label.className = 'label';
     label.textContent = sh.nom.replace(/^Ecu /, '');
     thumb.appendChild(label);
-    thumb.addEventListener('click', () => {
-      store.commit((d) => (d.ecu.forme = id), 'forme ecu');
-    });
+    thumb.addEventListener('click', () => store.commit((d) => (d.ecu.forme = id), 'forme ecu'));
     shieldGrid.appendChild(thumb);
   }
   secForme.appendChild(shieldGrid);
   body.appendChild(secForme);
 
-  // 2) Teinture du champ.
-  const secChamp = section('Teinture du champ (fond)');
+  // 2) Partition (composition 1-4+).
+  const secPart = section('Partition (division du blason)');
+  const partGrid = document.createElement('div');
+  partGrid.className = 'thumb-grid';
+  for (const id of PARTITION_ORDER) {
+    const part = PARTITIONS[id];
+    const thumb = document.createElement('div');
+    thumb.className = 'thumb' + (design.ecu.partition === id ? ' selected' : '');
+    thumb.style.cursor = 'pointer';
+    thumb.title = part.nom;
+    thumb.appendChild(partitionThumbSvg(id, design.ecu.forme));
+    const label = document.createElement('span');
+    label.className = 'label';
+    label.textContent = part.nom.replace(/\s*\(.*\)/, '');
+    thumb.appendChild(label);
+    thumb.addEventListener('click', () => setPartition(store, id));
+    partGrid.appendChild(thumb);
+  }
+  secPart.appendChild(partGrid);
+  body.appendChild(secPart);
+
+  // 3) Selecteur de quartier actif (si > 1 quartier).
+  const quartiers = getQuartiers(design);
+  if (quartiers.length > 1) {
+    const secQ = section('Quartier a editer');
+    const chips = document.createElement('div');
+    chips.className = 'row-btns';
+    quartiers.forEach((q, i) => {
+      const b = btn('Quartier ' + (i + 1), () => setActiveQuartier(i));
+      if (i === activeQuartier) b.classList.add('primary');
+      chips.appendChild(b);
+    });
+    secQ.appendChild(chips);
+    body.appendChild(secQ);
+  }
+
+  const q = quartiers[activeQuartier] || quartiers[0];
+
+  // 4) Champ du quartier actif.
+  const secChamp = section(quartiers.length > 1 ? `Champ du quartier ${activeQuartier + 1}` : 'Teinture du champ (fond)');
   secChamp.appendChild(
-    tinctureGrid(design.ecu.champ.tincture, (tid) => {
-      store.commit((d) => (d.ecu.champ.tincture = tid), 'teinture champ');
+    tinctureGrid(q.champ.tincture, (tid) => {
+      store.commit((d) => (getQuartiers(d)[activeQuartier].champ.tincture = tid), 'teinture champ');
     })
   );
   body.appendChild(secChamp);
 
-  // 3) Palette de meubles (glisser-deposer).
-  const secMeubles = section('Meubles (glisser sur l\'ecu)');
+  // 5) Disposition parametrique du quartier actif.
+  body.appendChild(dispositionControls(store, q, activeQuartier));
+
+  // 6) Palette de meubles + import.
+  const secMeubles = section('Meubles (glisser dans le quartier actif)');
   const grid = document.createElement('div');
   grid.className = 'thumb-grid';
   for (const id of SYMBOL_ORDER) {
     grid.appendChild(symbolThumb(id, SYMBOLS[id].nom, SYMBOLS[id].pathData, SYMBOL_VIEWBOX, SYMBOLS[id].fillRule));
   }
-  // Symboles personnalises importes.
-  for (const cs of design.customSymbols || []) {
-    grid.appendChild(customSymbolThumb(cs));
-  }
+  for (const cs of design.customSymbols || []) grid.appendChild(customSymbolThumb(cs));
   secMeubles.appendChild(grid);
-
-  // Import SVG perso.
   const importBtn = btn('Importer un symbole SVG…', () => ctx.io.importSvgSymbol());
   importBtn.style.marginTop = '10px';
   secMeubles.appendChild(importBtn);
-  const importHint = document.createElement('p');
-  importHint.className = 'empty-hint';
-  importHint.style.marginTop = '6px';
-  importHint.textContent =
-    'Le SVG importe est normalise et rendu re-colorable (ses couleurs codees en dur sont neutralisees).';
-  secMeubles.appendChild(importHint);
-
   body.appendChild(secMeubles);
+
   panel.appendChild(body);
 }
 
-/* ============================================================
- *  PANNEAU DROIT : proprietes du meuble selectionne + avertissements
- * ============================================================ */
+/** Bloc de reglages de disposition parametrique d'un quartier. */
+function dispositionControls(store, q, qi) {
+  const sec = section('Disposition parametrique');
+  const layout = q.layout || defaultLayout();
+
+  // Selecteur de disposition.
+  const selWrap = document.createElement('div');
+  selWrap.className = 'field';
+  const selLabel = document.createElement('label');
+  selLabel.textContent = 'Disposition';
+  const sel = document.createElement('select');
+  sel.className = 'select';
+  for (const [val, lab] of DISPOSITIONS) {
+    const o = document.createElement('option');
+    o.value = val;
+    o.textContent = lab;
+    if (layout.disposition === val) o.selected = true;
+    sel.appendChild(o);
+  }
+  sel.addEventListener('change', () => {
+    store.commit((d) => (getQuartiers(d)[qi].layout.disposition = sel.value), 'disposition');
+  });
+  selWrap.append(selLabel, sel);
+  sec.appendChild(selWrap);
+
+  // Nombre d'elements (stepper) : ajoute/retire des copies du dernier meuble.
+  const count = (q.meubles || []).length;
+  const nombreRow = document.createElement('div');
+  nombreRow.className = 'field';
+  const nlab = document.createElement('label');
+  nlab.innerHTML = 'Nombre d\'elements <span class="value">' + count + '</span>';
+  const stepper = document.createElement('div');
+  stepper.className = 'row-btns';
+  stepper.appendChild(btn('−', () => store.commit((d) => {
+    const m = getQuartiers(d)[qi].meubles;
+    if (m.length) m.pop();
+  }, 'nombre-')));
+  stepper.appendChild(btn('+ copie', () => store.commit((d) => {
+    const m = getQuartiers(d)[qi].meubles;
+    if (!m.length) return;
+    const src = m[m.length - 1];
+    m.push({ ...src, id: 'meuble-' + Math.random().toString(36).slice(2, 9), z: (src.z || 0) + 1, x: Math.min(190, src.x + 10), y: Math.min(230, src.y + 10) });
+  }, 'nombre+')));
+  nombreRow.append(nlab, stepper);
+  sec.appendChild(nombreRow);
+
+  // Sliders (masques en mode libre pour marge/espacement/echelle... on garde echelle utile partout).
+  if (layout.disposition !== 'libre') {
+    sec.appendChild(rangeField('Marge', layout.marge, 0, 60, 1, (v) =>
+      store.commit((d) => (getQuartiers(d)[qi].layout.marge = v), 'marge')));
+    sec.appendChild(rangeField('Espacement', layout.espacement, 0.6, 2.2, 0.05, (v) =>
+      store.commit((d) => (getQuartiers(d)[qi].layout.espacement = v), 'espacement')));
+  }
+  sec.appendChild(rangeField('Echelle globale', layout.echelle, 0.3, 2.5, 0.05, (v) =>
+    store.commit((d) => (getQuartiers(d)[qi].layout.echelle = v), 'echelle')));
+
+  // Colonnes / lignes pour la grille.
+  if (layout.disposition === 'grille') {
+    sec.appendChild(rangeField('Colonnes', layout.cols, 1, 6, 1, (v) =>
+      store.commit((d) => (getQuartiers(d)[qi].layout.cols = v), 'cols')));
+    sec.appendChild(rangeField('Lignes', layout.rows, 1, 6, 1, (v) =>
+      store.commit((d) => (getQuartiers(d)[qi].layout.rows = v), 'rows')));
+  }
+  return sec;
+}
+
+/* ===================== PANNEAU DROIT ===================== */
 
 function renderRightPanel(panel, { store, design, selectedId, setSelected, warnings }) {
   panel.innerHTML = '<h2>Proprietes</h2>';
   const body = document.createElement('div');
   body.className = 'panel-body';
 
-  const meuble = (design.meubles || []).find((m) => m.id === selectedId);
+  // --- Meuble selectionne ---
+  let meuble = null;
+  let inAuto = false;
+  for (const q of getQuartiers(design)) {
+    const m = (q.meubles || []).find((x) => x.id === selectedId);
+    if (m) { meuble = m; inAuto = q.layout?.disposition && q.layout.disposition !== 'libre'; break; }
+  }
+
   if (!meuble) {
     const hint = document.createElement('p');
     hint.className = 'empty-hint';
-    hint.textContent =
-      'Aucun meuble selectionne. Cliquez sur un meuble pose sur l\'ecu pour editer sa teinture, sa taille, sa rotation et son ordre de superposition.';
+    hint.textContent = 'Aucun meuble selectionne. Cliquez sur un meuble pour editer sa teinture, sa taille et sa rotation.';
     body.appendChild(hint);
   } else {
     const sym = resolveSymbol(meuble.symbolId, design.customSymbols);
     const title = document.createElement('h3');
     title.textContent = sym ? sym.nom : meuble.symbolId;
     body.appendChild(title);
-
-    // Teinture du meuble.
+    if (inAuto) {
+      const note = document.createElement('p');
+      note.className = 'empty-hint';
+      note.textContent = 'Position pilotee par la disposition automatique du quartier.';
+      body.appendChild(note);
+    }
     const secT = section('Teinture');
-    secT.appendChild(
-      tinctureGrid(meuble.tincture, (tid) => {
-        store.commit((d) => {
-          const m = d.meubles.find((x) => x.id === meuble.id);
-          if (m) m.tincture = tid;
-        }, 'teinture meuble');
-      })
-    );
+    secT.appendChild(tinctureGrid(meuble.tincture, (tid) => {
+      store.commit((d) => { const m = findAny(d, meuble.id); if (m) m.tincture = tid; }, 'teinture meuble');
+    }));
     body.appendChild(secT);
+    body.appendChild(rangeField('Taille', meuble.scale, 0.2, 4, 0.05, (v) =>
+      store.commit((d) => { const m = findAny(d, meuble.id); if (m) m.scale = v; }, 'taille')));
+    body.appendChild(rangeField('Rotation (deg)', meuble.rotation, -180, 180, 1, (v) =>
+      store.commit((d) => { const m = findAny(d, meuble.id); if (m) m.rotation = v; }, 'rotation')));
 
-    // Sliders : taille, rotation.
-    body.appendChild(
-      rangeField('Taille', meuble.scale, 0.2, 4, 0.05, (v) => {
-        store.commit((d) => {
-          const m = d.meubles.find((x) => x.id === meuble.id);
-          if (m) m.scale = v;
-        }, 'taille meuble');
-      })
-    );
-    body.appendChild(
-      rangeField('Rotation (deg)', meuble.rotation, -180, 180, 1, (v) => {
-        store.commit((d) => {
-          const m = d.meubles.find((x) => x.id === meuble.id);
-          if (m) m.rotation = v;
-        }, 'rotation meuble');
-      })
-    );
-
-    // Ordre de superposition + actions.
-    const secOrder = section('Disposition');
+    const secOrder = section('Actions');
     const rowBtns = document.createElement('div');
     rowBtns.className = 'row-btns';
-    rowBtns.appendChild(
-      btn('Devant', () =>
-        store.commit((d) => {
-          const maxZ = Math.max(...d.meubles.map((m) => m.z || 0));
-          const m = d.meubles.find((x) => x.id === meuble.id);
-          if (m) m.z = maxZ + 1;
-        }, 'ordre')
-      )
-    );
-    rowBtns.appendChild(
-      btn('Derriere', () =>
-        store.commit((d) => {
-          const minZ = Math.min(...d.meubles.map((m) => m.z || 0));
-          const m = d.meubles.find((x) => x.id === meuble.id);
-          if (m) m.z = minZ - 1;
-        }, 'ordre')
-      )
-    );
-    rowBtns.appendChild(
-      btn('Dupliquer', () => {
-        store.commit((d) => {
-          const src = d.meubles.find((x) => x.id === meuble.id);
-          if (!src) return;
-          const copy = { ...src, id: 'meuble-' + Math.random().toString(36).slice(2, 9), x: src.x + 12, y: src.y + 12, z: (src.z || 0) + 1 };
-          d.meubles.push(copy);
-        }, 'dupliquer');
-      })
-    );
+    rowBtns.appendChild(btn('Devant', () => store.commit((d) => bumpZ(d, meuble.id, +1), 'ordre')));
+    rowBtns.appendChild(btn('Derriere', () => store.commit((d) => bumpZ(d, meuble.id, -1), 'ordre')));
     const delBtn = btn('Supprimer', () => {
-      store.commit((d) => {
-        d.meubles = d.meubles.filter((m) => m.id !== meuble.id);
-      }, 'supprimer');
+      store.commit((d) => { for (const q of getQuartiers(d)) q.meubles = q.meubles.filter((m) => m.id !== meuble.id); }, 'supprimer');
       setSelected(null);
     });
     delBtn.classList.add('danger');
@@ -331,7 +375,13 @@ function renderRightPanel(panel, { store, design, selectedId, setSelected, warni
     body.appendChild(secOrder);
   }
 
-  // Avertissements heraldiques (non bloquants).
+  // --- Couronne ---
+  body.appendChild(crownControls(store, design));
+
+  // --- Devise ---
+  body.appendChild(deviseControls(store, design));
+
+  // --- Avertissements heraldiques ---
   const warnBox = document.createElement('div');
   warnBox.className = 'warnings';
   if (warnings.length) {
@@ -341,20 +391,141 @@ function renderRightPanel(panel, { store, design, selectedId, setSelected, warni
     for (const w of warnings) {
       const item = document.createElement('div');
       item.className = 'warn-item';
-      item.textContent = w.message + ' (meuble concerne)';
+      item.textContent = w.message;
       item.style.cursor = 'pointer';
       item.addEventListener('click', () => setSelected(w.meubleId));
       warnBox.appendChild(item);
     }
   }
   body.appendChild(warnBox);
-
   panel.appendChild(body);
 }
 
-/* ============================================================
- *  Fabriques de composants reutilisables
- * ============================================================ */
+/** Selecteur de couronne par titre. */
+function crownControls(store, design) {
+  const sec = section('Couronne / timbre (titre)');
+  const grid = document.createElement('div');
+  grid.className = 'thumb-grid';
+  for (const id of CROWN_ORDER) {
+    const c = CROWNS[id];
+    const thumb = document.createElement('div');
+    thumb.className = 'thumb' + (design.couronne.type === id ? ' selected' : '');
+    thumb.style.cursor = 'pointer';
+    thumb.title = c.nom;
+    const svg = document.createElementNS(SVG_NS, 'svg');
+    svg.setAttribute('viewBox', CROWN_VIEWBOX);
+    if (c.pathData) {
+      const p = document.createElementNS(SVG_NS, 'path');
+      p.setAttribute('d', c.pathData);
+      p.setAttribute('fill', '#c9a227');
+      svg.appendChild(p);
+    } else {
+      const t = document.createElementNS(SVG_NS, 'text');
+      t.setAttribute('x', '60'); t.setAttribute('y', '38');
+      t.setAttribute('text-anchor', 'middle'); t.setAttribute('font-size', '18'); t.setAttribute('fill', '#94a3b8');
+      t.textContent = '—';
+      svg.appendChild(t);
+    }
+    thumb.appendChild(svg);
+    const label = document.createElement('span');
+    label.className = 'label';
+    label.textContent = c.nom;
+    thumb.appendChild(label);
+    thumb.addEventListener('click', () => store.commit((d) => (d.couronne.type = id), 'couronne'));
+    grid.appendChild(thumb);
+  }
+  sec.appendChild(grid);
+  return sec;
+}
+
+/** Reglages de la devise (listel). */
+function deviseControls(store, design) {
+  const dv = design.devise;
+  const sec = section('Devise');
+
+  const visRow = document.createElement('label');
+  visRow.style.display = 'flex';
+  visRow.style.gap = '8px';
+  visRow.style.alignItems = 'center';
+  visRow.style.fontSize = '0.8rem';
+  const vis = document.createElement('input');
+  vis.type = 'checkbox';
+  vis.checked = dv.visible;
+  vis.addEventListener('change', () => store.commit((d) => (d.devise.visible = vis.checked), 'devise-visible'));
+  visRow.append(vis, document.createTextNode('Afficher la devise'));
+  sec.appendChild(visRow);
+
+  if (dv.visible) {
+    const txt = document.createElement('input');
+    txt.type = 'text';
+    txt.placeholder = 'Texte de la devise';
+    txt.value = dv.texte;
+    txt.style.width = '100%';
+    txt.style.marginTop = '8px';
+    txt.className = 'text-input';
+    txt.addEventListener('input', () => store.commit((d) => (d.devise.texte = txt.value), 'devise-texte'));
+    sec.appendChild(txt);
+
+    // Listel on/off.
+    const lisRow = document.createElement('label');
+    lisRow.style.cssText = 'display:flex;gap:8px;align-items:center;font-size:.8rem;margin-top:8px';
+    const lis = document.createElement('input');
+    lis.type = 'checkbox';
+    lis.checked = dv.listel;
+    lis.addEventListener('change', () => store.commit((d) => (d.devise.listel = lis.checked), 'listel'));
+    lisRow.append(lis, document.createTextNode('Listel (banderole)'));
+    sec.appendChild(lisRow);
+
+    // Police.
+    const polWrap = document.createElement('div');
+    polWrap.className = 'field';
+    polWrap.style.marginTop = '8px';
+    const polLab = document.createElement('label');
+    polLab.textContent = 'Police';
+    const pol = document.createElement('select');
+    const fonts = [
+      ['Georgia, "Times New Roman", serif', 'Georgia (serif)'],
+      ['"Times New Roman", serif', 'Times'],
+      ['system-ui, sans-serif', 'Sans-serif'],
+      ['"Courier New", monospace', 'Monospace']
+    ];
+    for (const [v, l] of fonts) { const o = document.createElement('option'); o.value = v; o.textContent = l; if (dv.police === v) o.selected = true; pol.appendChild(o); }
+    pol.addEventListener('change', () => store.commit((d) => (d.devise.police = pol.value), 'police'));
+    polWrap.append(polLab, pol);
+    sec.appendChild(polWrap);
+
+    // Casse.
+    const casseWrap = document.createElement('div');
+    casseWrap.className = 'field';
+    const casseLab = document.createElement('label');
+    casseLab.textContent = 'Casse';
+    const casse = document.createElement('select');
+    for (const [v, l] of [['majuscules', 'MAJUSCULES'], ['normale', 'Normale']]) {
+      const o = document.createElement('option'); o.value = v; o.textContent = l; if (dv.casse === v) o.selected = true; casse.appendChild(o);
+    }
+    casse.addEventListener('change', () => store.commit((d) => (d.devise.casse = casse.value), 'casse'));
+    casseWrap.append(casseLab, casse);
+    sec.appendChild(casseWrap);
+
+    sec.appendChild(rangeField('Taille', dv.taille, 8, 28, 1, (v) => store.commit((d) => (d.devise.taille = v), 'taille-devise')));
+    sec.appendChild(rangeField('Courbure du listel', dv.courbure, 0, 40, 1, (v) => store.commit((d) => (d.devise.courbure = v), 'courbure')));
+
+    // Couleur du texte.
+    const colWrap = document.createElement('div');
+    colWrap.className = 'field';
+    const colLab = document.createElement('label');
+    colLab.textContent = 'Couleur du texte';
+    const col = document.createElement('input');
+    col.type = 'color';
+    col.value = toHex(dv.couleur);
+    col.addEventListener('input', () => store.commit((d) => (d.devise.couleur = col.value), 'couleur-devise'));
+    colWrap.append(colLab, col);
+    sec.appendChild(colWrap);
+  }
+  return sec;
+}
+
+/* ===================== Fabriques ===================== */
 
 function section(title) {
   const s = document.createElement('div');
@@ -373,7 +544,6 @@ function btn(label, onClick) {
   return b;
 }
 
-/** Grille de pastilles de teinture avec teinture active surlignee. */
 function tinctureGrid(activeId, onPick) {
   const grid = document.createElement('div');
   grid.className = 'tincture-grid';
@@ -384,7 +554,6 @@ function tinctureGrid(activeId, onPick) {
     sw.title = t.nom;
     const chip = document.createElement('div');
     chip.className = 'chip';
-    // Apercu : pour une fourrure on affiche sa couleur de base (motif au rendu final).
     chip.style.background = t.couleur;
     if (t.categorie === 'fourrure') chip.style.backgroundImage = 'repeating-linear-gradient(45deg,#0002 0 3px,transparent 3px 6px)';
     const name = document.createElement('span');
@@ -397,7 +566,6 @@ function tinctureGrid(activeId, onPick) {
   return grid;
 }
 
-/** Champ curseur (range) avec valeur affichee. */
 function rangeField(label, value, min, max, step, onInput) {
   const f = document.createElement('div');
   f.className = 'field';
@@ -409,10 +577,7 @@ function rangeField(label, value, min, max, step, onInput) {
   lab.appendChild(val);
   const input = document.createElement('input');
   input.type = 'range';
-  input.min = min;
-  input.max = max;
-  input.step = step;
-  input.value = value;
+  input.min = min; input.max = max; input.step = step; input.value = value;
   input.addEventListener('input', () => {
     val.textContent = Number(input.value).toFixed(step < 1 ? 2 : 0);
     onInput(parseFloat(input.value));
@@ -421,7 +586,6 @@ function rangeField(label, value, min, max, step, onInput) {
   return f;
 }
 
-/** Vignette d'une forme d'ecu. */
 function shieldThumbSvg(pathData) {
   const svg = document.createElementNS(SVG_NS, 'svg');
   svg.setAttribute('viewBox', `0 0 ${SHIELD_VIEWBOX.width} ${SHIELD_VIEWBOX.height}`);
@@ -434,7 +598,28 @@ function shieldThumbSvg(pathData) {
   return svg;
 }
 
-/** Vignette draggable d'un meuble natif. */
+/** Vignette d'une partition (contour d'ecu + lignes de division). */
+function partitionThumbSvg(partitionId, forme) {
+  const sh = SHIELDS[forme] || SHIELDS['francais-moderne'];
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('viewBox', `0 0 ${SHIELD_VIEWBOX.width} ${SHIELD_VIEWBOX.height}`);
+  const p = document.createElementNS(SVG_NS, 'path');
+  p.setAttribute('d', sh.path);
+  p.setAttribute('fill', '#e7edf6');
+  p.setAttribute('stroke', '#2456a4');
+  p.setAttribute('stroke-width', '4');
+  svg.appendChild(p);
+  const { lines } = getRegions(partitionId);
+  for (const seg of lines || []) {
+    const l = document.createElementNS(SVG_NS, 'line');
+    l.setAttribute('x1', seg[0][0]); l.setAttribute('y1', seg[0][1]);
+    l.setAttribute('x2', seg[1][0]); l.setAttribute('y2', seg[1][1]);
+    l.setAttribute('stroke', '#2456a4'); l.setAttribute('stroke-width', '4');
+    svg.appendChild(l);
+  }
+  return svg;
+}
+
 function symbolThumb(id, nom, pathData, viewBox, fillRule) {
   const thumb = document.createElement('div');
   thumb.className = 'thumb';
@@ -459,7 +644,6 @@ function symbolThumb(id, nom, pathData, viewBox, fillRule) {
   return thumb;
 }
 
-/** Vignette draggable d'un symbole personnalise importe. */
 function customSymbolThumb(cs) {
   const thumb = document.createElement('div');
   thumb.className = 'thumb';
@@ -489,11 +673,6 @@ function buildToastHost() {
   return host;
 }
 
-/**
- * Affiche une notification ephemere.
- * @param {string} message
- * @param {boolean} [isError]
- */
 export function toast(message, isError = false) {
   const host = document.getElementById('toast-host');
   if (!host) return;
@@ -502,4 +681,49 @@ export function toast(message, isError = false) {
   t.textContent = message;
   host.appendChild(t);
   setTimeout(() => t.remove(), 2600);
+}
+
+/* ===================== Helpers d'etat ===================== */
+
+/** Change la partition et ajuste le nombre de quartiers (en preservant les donnees). */
+function setPartition(store, partitionId) {
+  store.commit((d) => {
+    d.ecu.partition = partitionId;
+    const target = partitionCount(partitionId);
+    const quartiers = d.ecu.quartiers;
+    while (quartiers.length < target) quartiers.push(createQuartier(alternateTincture(quartiers.length)));
+    if (quartiers.length > target) quartiers.length = target; // on tronque (donnees des quartiers en trop retirees)
+  }, 'partition');
+}
+
+/** Alterne les teintures par defaut des nouveaux quartiers (contraste). */
+function alternateTincture(index) {
+  const pairs = ['azur', 'or', 'gueules', 'argent', 'sinople', 'or', 'gueules', 'argent'];
+  return pairs[index % pairs.length];
+}
+
+/** Retrouve un meuble (objet mutable) a travers tous les quartiers. */
+function findAny(design, id) {
+  for (const q of getQuartiers(design)) {
+    const m = (q.meubles || []).find((x) => x.id === id);
+    if (m) return m;
+  }
+  return null;
+}
+
+/** Change le z d'un meuble (devant/derriere) dans son quartier. */
+function bumpZ(design, id, dir) {
+  for (const q of getQuartiers(design)) {
+    const m = (q.meubles || []).find((x) => x.id === id);
+    if (!m) continue;
+    const zs = q.meubles.map((x) => x.z || 0);
+    m.z = dir > 0 ? Math.max(...zs) + 1 : Math.min(...zs) - 1;
+    return;
+  }
+}
+
+/** Convertit une couleur (nom hex deja) en #rrggbb pour input[type=color]. */
+function toHex(c) {
+  if (typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c)) return c;
+  return '#f4f6f7';
 }

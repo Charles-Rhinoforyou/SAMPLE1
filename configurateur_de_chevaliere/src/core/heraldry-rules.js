@@ -56,16 +56,20 @@ export function verifierContrariete(fondTincture, meubleTincture) {
 
 /**
  * Analyse l'ensemble du design et retourne la liste des avertissements
- * heraldiques (non bloquants) sur les meubles poses.
+ * heraldiques (non bloquants) sur les meubles poses. Chaque meuble est compare
+ * au champ de SON quartier.
  * @param {object} design document design
  * @returns {Array<{meubleId:string, message:string}>}
  */
 export function analyserDesign(design) {
   const warnings = [];
-  const fond = design?.ecu?.champ?.tincture;
-  for (const m of design.meubles || []) {
-    const res = verifierContrariete(fond, m.tincture);
-    if (!res.ok) warnings.push({ meubleId: m.id, message: res.message });
+  const quartiers = design?.ecu?.quartiers || [];
+  for (const q of quartiers) {
+    const fond = q?.champ?.tincture;
+    for (const m of q.meubles || []) {
+      const res = verifierContrariete(fond, m.tincture);
+      if (!res.ok) warnings.push({ meubleId: m.id, message: res.message });
+    }
   }
   return warnings;
 }
