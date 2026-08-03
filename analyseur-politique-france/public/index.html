@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Analyseur Politique France</title>
+    <meta
+      name="description"
+      content="Tableau de bord d'analyse des paramètres structurels qui influencent les décisions politiques d'un pays, avec insights générés par Claude."
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">⚖️</span>
+        <div>
+          <h1>Analyseur Politique <span class="accent">France</span></h1>
+          <p class="subtitle">
+            Évaluation structurée des paramètres qui influencent les décisions
+            politiques — analyse &amp; rapports assistés par l'IA
+          </p>
+        </div>
+      </div>
+      <div class="mode-switch" role="tablist" aria-label="Mode de l'application">
+        <button
+          id="mode-analyse"
+          class="mode-btn active"
+          role="tab"
+          aria-selected="true"
+        >
+          Mode analyse
+        </button>
+        <button
+          id="mode-rapport"
+          class="mode-btn"
+          role="tab"
+          aria-selected="false"
+        >
+          Mode rapport
+        </button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <!-- Panneau de configuration -->
+      <section class="config-panel" aria-label="Configuration">
+        <div class="config-row">
+          <label for="pays">Pays</label>
+          <input id="pays" type="text" value="France" autocomplete="off" />
+        </div>
+        <div class="config-row">
+          <label for="model">Modèle Claude</label>
+          <select id="model"></select>
+        </div>
+        <div class="config-row config-key">
+          <label for="apiKey">
+            Clé API
+            <span id="keyStatus" class="key-status"></span>
+          </label>
+          <input
+            id="apiKey"
+            type="password"
+            placeholder="sk-ant-… (facultatif si configurée côté serveur)"
+            autocomplete="off"
+          />
+          <small
+            >La clé détermine le compte / l'organisation. Elle n'est jamais
+            stockée : utilisée uniquement pour cette requête.</small
+          >
+        </div>
+        <div class="config-actions">
+          <button id="btn-analyser" class="btn btn-primary">
+            <span class="btn-label">Lancer l'analyse</span>
+          </button>
+          <button id="btn-exemple" class="btn btn-ghost">
+            Charger un exemple
+          </button>
+          <button id="btn-reset" class="btn btn-ghost">Réinitialiser</button>
+        </div>
+        <div id="status" class="status-line" role="status" aria-live="polite"></div>
+      </section>
+
+      <!-- Tableau de bord de synthèse (rempli après analyse) -->
+      <section id="dashboard" class="dashboard hidden" aria-label="Synthèse">
+        <div class="score-hero">
+          <div class="gauge-wrap">
+            <svg id="gauge" viewBox="0 0 120 120" width="150" height="150" role="img" aria-label="Score global">
+              <circle class="gauge-bg" cx="60" cy="60" r="52" />
+              <circle id="gauge-fg" class="gauge-fg" cx="60" cy="60" r="52" />
+              <text id="gauge-text" x="60" y="60" class="gauge-text">–</text>
+              <text x="60" y="78" class="gauge-sub">/100</text>
+            </svg>
+            <div class="score-caption">Score de santé politique</div>
+          </div>
+          <div class="score-summary">
+            <h2>Synthèse globale</h2>
+            <p id="synthese">—</p>
+            <div class="export-bar">
+              <span class="export-label">Exporter :</span>
+              <button id="exp-word" class="btn btn-mini">Word</button>
+              <button id="exp-pdf" class="btn btn-mini">PDF</button>
+              <button id="exp-excel" class="btn btn-mini">Excel</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <h3>Scores par paramètre</h3>
+          <div id="bars" class="bars"></div>
+        </div>
+
+        <div class="actions-card">
+          <h3>Actions prioritaires recommandées</h3>
+          <ul id="actions" class="actions-list"></ul>
+        </div>
+      </section>
+
+      <!-- Grille des 9 sections -->
+      <section class="sections-grid" id="sections-grid" aria-label="Paramètres d'analyse"></section>
+    </main>
+
+    <footer class="app-footer">
+      <p>
+        Outil analytique à visée éducative. Les scores et recommandations sont
+        des interprétations générées par l'IA à partir des données saisies, et
+        ne constituent ni un jugement officiel ni des faits vérifiés.
+      </p>
+    </footer>
+
+    <script src="app.js"></script>
+  </body>
+</html>

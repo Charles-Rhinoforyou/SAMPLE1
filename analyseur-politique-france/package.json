@@ -1,0 +1,18 @@
+{
+  "name": "analyseur-politique-france",
+  "version": "1.0.0",
+  "description": "Tableau de bord d'analyse des paramètres structurels influençant les décisions politiques d'un pays, avec insights générés par l'API Claude.",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.71.0",
+    "express": "^4.21.2"
+  },
+  "license": "MIT"
+}
