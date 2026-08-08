@@ -1,0 +1,50 @@
+name: Deploiement du configurateur de chevaliere (GitHub Pages)
+
+# Build le projet Vite (sous-dossier configurateur_de_chevaliere) et le publie
+# sur GitHub Pages. Se declenche sur push de la branche de dev et manuellement.
+on:
+  push:
+    branches: [claude/heraldic-ring-configurator-9rut9j]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Installer et builder
+        working-directory: configurateur_de_chevaliere
+        run: |
+          npm ci
+          npm run build
+      - name: Configurer Pages (active Pages si besoin)
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - name: Televerser l'artefact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: configurateur_de_chevaliere/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deployer sur Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
